@@ -151,6 +151,7 @@ def relax_overlaps_AB(initial_state, device, epsAB, iterations, fname=None):
     
     return sim.state
 
+'''
 def nvt_dpd(initial_state, device, aAB, kT, iterations, fstruct=None, ftraj=None):
 
     # force field parameters
@@ -169,6 +170,7 @@ def nvt_dpd(initial_state, device, aAB, kT, iterations, fstruct=None, ftraj=None
 
     sim.run(iterations)
     return sim.state
+'''
 
 def equilibrate(initial_state, device, kT, iterations, period=5000, fstruct=None, ftraj=None, flog=None):
 
@@ -407,6 +409,7 @@ def run_GAUSSIAN_FENE(initial_state, device, kT, prefactor_range, feneParam, ite
 
     return sim.state
 
+'''
 def setup_DPD_FENE(initial_state, device, period, dpdParam, dpd_rcut, feneParam, kT, fstruct=None, ftraj=None):
 
     sim = hoomd.Simulation(device=device, seed=1)
@@ -444,7 +447,8 @@ def setup_DPD_FENE(initial_state, device, period, dpdParam, dpd_rcut, feneParam,
     sim.run(iterations)
 
     return sim
-
+'''
+    
 def setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, feneParam, methods, fstruct=None, ftraj=None, flog=None):
     sim = hoomd.Simulation(device=device, seed=1)
     sim.create_state_from_snapshot(initial_state)
