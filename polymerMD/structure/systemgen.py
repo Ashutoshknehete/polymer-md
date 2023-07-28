@@ -197,7 +197,7 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=F
     nBonds = len(bondgroup)
 
     # generate snapshot!!
-    frame = gsd.hoomd.Frame()
+    frame = gsd.hoomd.Snapshot()
     frame.configuration.box = box
     frame.particles.N = N
     frame.particles.position = pos
