@@ -158,3 +158,5 @@ if os.path.exists("struct/prod.gsd"):
 snap_equil = gsd.hoomd.open("struct/equil.gsd", mode='rb')[0]
 state_prod = _production(snap_equil, kT=1, epsilonAB=1, flog="prod.log.gsd")
 hoomd.write.GSD.write(state=state_prod, filename="struct/prod.gsd", mode='xb')
+
+
