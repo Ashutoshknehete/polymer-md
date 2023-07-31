@@ -197,12 +197,12 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=F
     nBonds = len(bondgroup)
 
     # generate snapshot!!
-    frame = gsd.hoomd.Snapshot()
+    frame = gsd.hoomd.Snapshot() #.Frame replaced by .Snapshot for version compatibility
     frame.configuration.box = box
     frame.particles.N = N
     frame.particles.position = pos
     frame.particles.types = types
-    frame.particles.typeid = typeid
+    frame.particles.typeid = typeid 
     frame.bonds.N = nBonds
     frame.bonds.types = bondtypes
     frame.bonds.typeid = bondtypeid
