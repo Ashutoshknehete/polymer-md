@@ -134,7 +134,211 @@ class LinearPolymerSpec(Species):
         for block in self.blocks:
             types += block.particletypes
         return types
+
+class BranchedPolymerSpec(Species):
+
+    def __init__(self, monomers, lengths, vertexID0, vertexID1, vertex):
+        self.isPolymer = True
+        self.nBlocks = len(monomers)
+        self.vertexID0 = vertexID0
+        self.vertexID1 = vertexID1
+        self.lengths = lengths
+        self.vertex = vertex
+
+        for i in range(self.nBlocks):
+            self._blocks[i].monomer = monomers[i]
+            self._blocks[i].length = lengths[i]
+
+    @property
+    def length(self):
+        return np.sum([block.length for block in self.blocks]) # right now, the length of a branched polymer is total lengths of blocks - change
+
+    @property
+    def nBlocks(self):
+        return self._nBlocks
+        
+    @nBlocks.setter
+    def nBlocks(self, value):
+        self._nBlocks = value
+        self._blocks = [BlockSpec() for i in range(value)]
+        return    
+
+    @property
+    def blocks(self):
+        return self._blocks
     
+    @property
+    def label(self):
+        return ''.join([block.monomer.label for block in self.blocks]) # labels of the elements in each block
+
+    @property
+    def particletypes(self):
+        types = []
+        for block in self.blocks:
+            types += block.particletypes
+        for i in range(self.total_vertices):
+            types += self.vertex[0].label
+        return types
+
+    @property
+    def total_vertices(self):
+        # total number of distinct vertices
+        combined_array = self.vertexID0 + self.vertexID1
+        self._total_vertices = max(combined_array)+1
+        return self._total_vertices
+
+    @property
+    def vertices(self):
+        self._vertices = []
+        for i in range(self.total_vertices):
+            self._vertices.append(self.vertex[0])
+        return self._vertices
+    
+    @property
+    def connectivity_count(self):
+        # to how many vertices is each vertex connected?
+        self._connectivity_count = []
+        for vertex_index in range(self.total_vertices):
+            combined_array = self.vertexID0 + self.vertexID1
+            count_element = combined_array.count(vertex_index)
+            self._connectivity_count.append(count_element)
+        return self._connectivity_count
+
+    @property
+    def connectivity_list(self):
+        # which vertices are connected to each vertex?
+        self._connectivity_list = []
+        for vertex_index in range(self.total_vertices):
+            vertex_index_connectivity_list = []
+            for i in range(self.nBlocks): # note, len(vertexID0) = len(vertexID0) = nBlocks
+                if self.vertexID0[i] == vertex_index:
+                    vertex_index_connectivity_list.append(self.vertexID1[i])
+                elif self.vertexID1[i] == vertex_index:
+                    vertex_index_connectivity_list.append(self.vertexID0[i])
+            self._connectivity_list.append(vertex_index_connectivity_list)
+        return self._connectivity_list
+
+    @property
+    def connectivity_at_start_list(self):
+        self._connectivity_at_start_list = [] # list of all vertices connected to a vertex V, when V acts as the start of the block
+        for vertex_index in range(self.total_vertices):
+            vertex_index_connectivity_at_start_list = []
+            for i in range(self.nBlocks): # note, len(vertexID0) = len(vertexID0) = nBlocks
+                if self.vertexID1[i] == vertex_index:
+                    vertex_index_connectivity_at_start_list.append(self.vertexID0[i])
+            self._connectivity_at_start_list.append(vertex_index_connectivity_at_start_list)
+        return self._connectivity_at_start_list
+    
+    @property
+    def connectivity_at_end_list(self):
+        self._connectivity_at_end_list = [] # list of all vertices connected to a vertex V, when V acts as the end of the block
+        for vertex_index in range(self.total_vertices):
+            vertex_index_connectivity_at_end_list = []
+            for i in range(self.nBlocks): # note, len(vertexID0) = len(vertexID0) = nBlocks
+                if self.vertexID0[i] == vertex_index:
+                    vertex_index_connectivity_at_end_list.append(self.vertexID1[i])
+            self._connectivity_at_end_list.append(vertex_index_connectivity_at_end_list)
+        return self._connectivity_at_end_list
+
+    @property
+    def free_chain_ends(self):
+        # which vertices are free chain ends and which are junction nodes?
+        self._free_chain_ends = []
+        self._junction_nodes = []
+        for vertex_index, vertex_index_connectivity_list in enumerate(self.connectivity_list):
+            if len(vertex_index_connectivity_list) == 1:
+                self._free_chain_ends.append(vertex_index)
+            elif len(vertex_index_connectivity_list) > 1:
+                self._junction_nodes.append(vertex_index)
+        return self._free_chain_ends
+    
+    @property
+    def junction_nodes(self):
+        # which vertices are free chain ends and which are junction nodes?
+        self._free_chain_ends = []
+        self._junction_nodes = []
+        for vertex_index, vertex_index_connectivity_list in enumerate(self.connectivity_list):
+            if len(vertex_index_connectivity_list) == 1:
+                self._free_chain_ends.append(vertex_index)
+            elif len(vertex_index_connectivity_list) > 1:
+                self._junction_nodes.append(vertex_index)
+        return self._junction_nodes
+
+    @property
+    def bonds(self):
+
+        # this is specific to a branched polymer
+        # all the bonds, assuming that the first particle is indexed at 0 
+        bonds = []
+        Ntot = 0
+
+        # this array store [0,l1,l1+l2,l1+l2+l3...] where li is the length of each block, these elements act as IDs for connecting bonds
+        cumulative_sum_start = []
+        cumulative_sum = 0
+        for block_length in self.lengths:
+            cumulative_sum_start.append(cumulative_sum)
+            cumulative_sum += block_length
+
+        # this array store [l1-1,l1+l2-1,l1+l2+l3-1...] where li is the length of each block, these elements act as IDs for connecting bonds
+        cumulative_sum_end = []
+        cumulative_sum = 0
+        for block_length in self.lengths:
+            cumulative_sum += block_length
+            cumulative_sum_end.append(cumulative_sum-1)
+
+        print(cumulative_sum_start)
+        print(cumulative_sum_end)
+
+        # connect all bonds in the branched polymer
+        for block in self.blocks:
+
+            # within the block
+            for i in range(1,block.length):
+                bonds.append([Ntot + (i-1), Ntot + i])
+
+            # chain length so far
+            Ntot += block.length
+        
+        # iterate over all vertices that are not chain free ends, to connect blocks to vertices
+        for junction_idx, junction_node in enumerate(self.junction_nodes):
+
+            # get the list of all vertices connected to each junction node
+            connected_vertices_list = self.connectivity_list[junction_node]
+
+            # get the list of all vertices connected to each junction node when the junction node acts as the start of block
+            for neighbour in self.connectivity_at_start_list[junction_node]:
+                bonds.append([Ntot+junction_idx, cumulative_sum_start[neighbour-1]])
+
+            # get the list of all vertices connected to each junction node when the junction node acts as the end of block
+            for neighbour in self.connectivity_at_end_list[junction_node]:
+                bonds.append([Ntot+junction_idx, cumulative_sum_end[neighbour-1]])
+
+        return bonds
+
+    @property
+    def bondtypes(self):
+        # this is specific to a branched polymer
+        # all the bond types
+        bondtypes = []
+        for idxblock, block in enumerate(self.blocks):
+            # within the block
+            for i in range(1,block.length):
+                bondtypes.append('{:s}-{:s}'.format(block.monomer.label, block.monomer.label))
+            # connect the blocks
+
+        # iterate over all vertices that are not chain free ends, to define the bond types of junction nodes' bonds
+        for junction_idx, junction_node in enumerate(self.junction_nodes):
+
+            # get the list of all vertices connected to each junction node when the junction node acts as the start of block
+            for neighbour in self.connectivity_at_start_list[junction_node]:
+                bondtypes.append('{:s}-{:s}'.format(self.vertex[0].label, self.vertex[0].label))
+
+            # get the list of all vertices connected to each junction node when the junction node acts as the end of block
+            for neighbour in self.connectivity_at_end_list[junction_node]:
+                bondtypes.append('{:s}-{:s}'.format(self.vertex[0].label, self.vertex[0].label))
+
+        return bondtypes
+
 class MonatomicMoleculeSpec(Species):
 
     def __init__(self, monomer: MonomerSpec):
