@@ -151,7 +151,7 @@ class BranchedPolymerSpec(Species):
 
     @property
     def length(self):
-        return np.sum([block.length for block in self.blocks]) # right now, the length of a branched polymer is total lengths of blocks - change
+        return np.sum([block.length for block in self.blocks]) + self.total_vertices
 
     @property
     def nBlocks(self):
@@ -285,9 +285,6 @@ class BranchedPolymerSpec(Species):
         for block_length in self.lengths:
             cumulative_sum += block_length
             cumulative_sum_end.append(cumulative_sum-1)
-
-        print(cumulative_sum_start)
-        print(cumulative_sum_end)
 
         # connect all bonds in the branched polymer
         for block in self.blocks:

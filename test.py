@@ -35,18 +35,19 @@ B = system.addMonomer('B',l)
 C = system.addMonomer('C',l)
 V = system.addMonomer('V',l)
 
-monomers = [A,B,C,A,B,C,A]
-lengths = [4,5,6,7,6,5,4]
-vertexID0 = [0,1,2,3,4,5,6]
-vertexID1 = [5,5,6,7,7,6,7]
+monomers = [A,B,C]
+lengths = [2,3,4]
+vertexID0 = [0,1,2]
+vertexID1 = [3,3,3]
 vertex = [V]
 poly = systemspec.BranchedPolymerSpec(monomers, lengths, vertexID0, vertexID1, vertex)
+system.addComponent(poly, 1)
 
 '''
 print(poly.lengths)
 print(poly.bondtypes)
 print(poly.label)
-print(poly.total_vertices)
+print(poly.total_vertices) 
 print(poly.particletypes)
 print(poly.connectivity_at_start_list)
 print(poly.connectivity_at_end_list)
@@ -57,12 +58,9 @@ print(poly.junction_nodes)
 print(poly.bonds)
 '''
 
-system.addComponent(poly, 1)
+snap = systemgen.build_snapshot(system,'random')
+if os.path.exists("struct/branched.gsd"):
+        os.remove("struct/branched.gsd")
 
-'''
-snap = systemgen.build_snapshot(system,'boxregions',regions,regioncenters)
-root = "/Users/ryancollanton/Desktop/"
-stem = "A{:03d}_{:04d}_B{:03d}_{:04d}.A{:03d}_B{:03d}_A{:03d}_{:04d}.init.gsd".format(N_A, M_A, N_B, M_B, N_CP[0], N_CP[1], N_CP[2], M_CP)
-fname = root + stem
-write_gsd_from_snapshot(snap, fname)
-'''
+with gsd.hoomd.open(name="struct/branched.gsd", mode='xb') as f:
+    f.append(snap)

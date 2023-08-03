@@ -83,6 +83,21 @@ def walk_linearPolymer(polymer):
 
     return chain
 
+def walk_branchedPolymer(polymer):
+
+    # walk each block of the polymer
+    blockcoords = []
+    for block in polymer.blocks:
+        blockcoords.append(mc_chain_walk(block.length, block.monomer.l))
+
+    # connect them
+    # NOTE: this is an escapist solution. 
+    # I need to find a way to account for different bond lengths l cleanly
+    l = polymer.blocks[0].monomer.l
+    chain = connect_chains(blockcoords, l)
+
+    return chain
+
 def walkComponent(component):
     # generate a set of random walk coordinates for this component that are the right length
     num = component.N
@@ -90,6 +105,8 @@ def walkComponent(component):
     for i in range(num):
         if isinstance(component.species, systemspec.LinearPolymerSpec):
             coordlist.append(walk_linearPolymer(component.species))  
+        elif isinstance(component.species, systemspec.BranchedPolymerSpec):
+            coordlist.append(walk_branchedPolymer(component.species))
         elif isinstance(component.species, systemspec.MonatomicMoleculeSpec):
             coordlist.append(np.array([0,0,0])) # will be placed randomly in placecomponent, called by systemCoords
     
@@ -127,7 +144,6 @@ def systemCoordsRandom(system):
             nchain = coord.shape[0]
             syscoords[totaladded:totaladded+nchain,:] = coord
             totaladded += nchain
-
     syscoords = wrap_coords(syscoords, box)
     return syscoords
 
@@ -161,7 +177,6 @@ def getParticleTypes(system):
     N = system.numparticles # number of particles in system
     alltypes = system.particleTypes()
     typeid = [types.index(label) for label in alltypes]
-
     return types, typeid
 
 def getBondTypes(system):
@@ -171,12 +186,11 @@ def getBondTypes(system):
 
     return bonds, bondtypes, bondtypeid
 
-def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=False):
+def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=True):
 
     # get system box size, total number of particles, 
     box = system.box
     N = system.numparticles
-
     # get system coords 
     if type == 'random':
         pos = systemCoordsRandom(system)
@@ -191,7 +205,7 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=F
 
     # get particle indices, types, and type ids
     types, typeid = getParticleTypes(system)
-
+    
     # get bond indices, types, and type ids
     bondgroup, bondtypes, bondtypeid = getBondTypes(system)
     nBonds = len(bondgroup)
