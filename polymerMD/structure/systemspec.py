@@ -137,13 +137,14 @@ class LinearPolymerSpec(Species):
 
 class BranchedPolymerSpec(Species):
 
-    def __init__(self, monomers, lengths, vertexID0, vertexID1, vertex):
+    def __init__(self, monomers, lengths, vertexID0, vertexID1, vertex, shape):
         self.isPolymer = True
         self.nBlocks = len(monomers)
         self.vertexID0 = vertexID0
         self.vertexID1 = vertexID1
         self.lengths = lengths
         self.vertex = vertex
+        self.shape = shape
 
         for i in range(self.nBlocks):
             self._blocks[i].monomer = monomers[i]
@@ -151,8 +152,17 @@ class BranchedPolymerSpec(Species):
 
     @property
     def length(self):
-        return np.sum([block.length for block in self.blocks]) + self.total_vertices
+        return np.sum([block.length for block in self.blocks]) + len(self.junction_nodes)
 
+    @property
+    def shape(self):
+        return self._shape
+    
+    @shape.setter
+    def shape(self, value):
+        self._shape = value
+        return    
+        
     @property
     def nBlocks(self):
         return self._nBlocks
@@ -176,7 +186,7 @@ class BranchedPolymerSpec(Species):
         types = []
         for block in self.blocks:
             types += block.particletypes
-        for i in range(self.total_vertices):
+        for i in range(len(self.junction_nodes)):
             types += self.vertex[0].label
         return types
 
@@ -184,7 +194,7 @@ class BranchedPolymerSpec(Species):
     def total_vertices(self):
         # total number of distinct vertices
         combined_array = self.vertexID0 + self.vertexID1
-        self._total_vertices = max(combined_array)+1
+        self._total_vertices = len(set(combined_array))
         return self._total_vertices
 
     @property
@@ -302,6 +312,9 @@ class BranchedPolymerSpec(Species):
             # get the list of all vertices connected to each junction node
             connected_vertices_list = self.connectivity_list[junction_node]
 
+            # 5 monomer is added as junction_idx = 0 (make it serially?)
+            self.connectivity_at_start_list.sort()
+            self.connectivity_at_end_list.sort()
             # get the list of all vertices connected to each junction node when the junction node acts as the start of block
             for neighbour in self.connectivity_at_start_list[junction_node]:
                 bonds.append([Ntot+junction_idx, cumulative_sum_start[neighbour-1]])
@@ -326,6 +339,7 @@ class BranchedPolymerSpec(Species):
         # iterate over all vertices that are not chain free ends, to define the bond types of junction nodes' bonds
         for junction_idx, junction_node in enumerate(self.junction_nodes):
 
+            # fix this label
             # get the list of all vertices connected to each junction node when the junction node acts as the start of block
             for neighbour in self.connectivity_at_start_list[junction_node]:
                 bondtypes.append('{:s}-{:s}'.format(self.vertex[0].label, self.vertex[0].label))
@@ -375,6 +389,10 @@ class Component:
     @property
     def label(self):
         return self._species.label
+
+    @property
+    def shape(self):
+        return self._species.shape
     
     @property 
     def N(self):

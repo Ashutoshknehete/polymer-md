@@ -43,7 +43,7 @@ def mc_chain_walk(N, l):
 
     return PolymerCoords
 
-def connect_chains(chains, l):
+def connect_chains_linear(chains, l):
     # uses the same montecarlo technique to connect already generated set of coordinates.
     # only checks chain bending in the backward direction, not in the forward direction!
 
@@ -68,7 +68,39 @@ def connect_chains(chains, l):
 
     return chain
 
-def walk_linearPolymer(polymer):
+def connect_chains_star(chains, l):
+    # uses the same montecarlo technique to connect already generated set of coordinates.
+    # only checks chain bending in the backward direction, not in the forward direction!
+
+    # monte carlo cutoff 
+    twostepcutoff = 1.02/0.97 * l
+
+    # chains should be a list of numpy arrays of coordinates of polymers
+    # block is the numpy array of coordinates of the each chain in chains        
+    
+    coords = []
+    junction_coords = [0,0,0]
+    
+    for i in range(len(chains)):
+        
+        block = chains[i]
+        block_start = block[0,:]
+
+        while True:
+            randstep = np.random.rand(1,3) - 0.5
+            chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
+            twostepdist = np.linalg.norm(chainstart - block[-2,:])
+            if twostepdist > twostepcutoff:
+                break
+        shiftedblockcoords = block - block_start + chainstart
+        for row in shiftedblockcoords:
+            coords.append(row.tolist())
+                    
+    coords.append(junction_coords)
+        
+    return coords
+
+def walk_linearPolymer(polymer: systemspec.LinearPolymerSpec):
 
     # walk each block of the polymer
     blockcoords = []
@@ -79,11 +111,27 @@ def walk_linearPolymer(polymer):
     # NOTE: this is an escapist solution. 
     # I need to find a way to account for different bond lengths l cleanly
     l = polymer.blocks[0].monomer.l
-    chain = connect_chains(blockcoords, l)
+    chain = connect_chains_linear(blockcoords, l)
 
     return chain
 
-def walk_branchedPolymer(polymer):
+def walk_starPolymer(polymer: systemspec.BranchedPolymerSpec):
+
+    # walk each block of the polymer
+    blockcoords = []
+    for block in polymer.blocks:
+        blockcoords.append(mc_chain_walk(block.length, block.monomer.l))
+
+    # connect them
+    # NOTE: this is an escapist solution. 
+    # I need to find a way to account for different bond lengths l cleanly
+    
+    l = polymer.blocks[0].monomer.l
+    coords = connect_chains_star(blockcoords, l)
+
+    return coords
+
+def walk_graftPolymer(polymer: systemspec.BranchedPolymerSpec):
 
     # walk each block of the polymer
     blockcoords = []
@@ -94,7 +142,7 @@ def walk_branchedPolymer(polymer):
     # NOTE: this is an escapist solution. 
     # I need to find a way to account for different bond lengths l cleanly
     l = polymer.blocks[0].monomer.l
-    chain = connect_chains(blockcoords, l)
+    chain = connect_chains_linear(blockcoords, l)
 
     return chain
 
@@ -106,7 +154,10 @@ def walkComponent(component):
         if isinstance(component.species, systemspec.LinearPolymerSpec):
             coordlist.append(walk_linearPolymer(component.species))  
         elif isinstance(component.species, systemspec.BranchedPolymerSpec):
-            coordlist.append(walk_branchedPolymer(component.species))
+            if component.shape == 'star':
+                coordlist.append(walk_starPolymer(component.species))
+            if component.shape == 'graft':
+                coordlist.append(walk_graftPolymer(component.species))
         elif isinstance(component.species, systemspec.MonatomicMoleculeSpec):
             coordlist.append(np.array([0,0,0])) # will be placed randomly in placecomponent, called by systemCoords
     

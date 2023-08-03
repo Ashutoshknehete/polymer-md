@@ -22,7 +22,7 @@ def write_gsd_from_snapshot(snapshot, fname):
     return
 
 # System parameters
-l = 1
+l = 2
 L_x = 20
 L_y = 20
 L_z = 20
@@ -36,11 +36,12 @@ C = system.addMonomer('C',l)
 V = system.addMonomer('V',l)
 
 monomers = [A,B,C]
-lengths = [2,3,4]
+lengths = [5,4,3]
 vertexID0 = [0,1,2]
 vertexID1 = [3,3,3]
 vertex = [V]
-poly = systemspec.BranchedPolymerSpec(monomers, lengths, vertexID0, vertexID1, vertex)
+shape = 'star'
+poly = systemspec.BranchedPolymerSpec(monomers, lengths, vertexID0, vertexID1, vertex, shape)
 system.addComponent(poly, 1)
 
 '''
