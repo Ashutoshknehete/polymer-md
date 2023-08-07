@@ -100,6 +100,76 @@ def connect_chains_star(chains, l):
         
     return coords
 
+def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
+    # uses the same montecarlo technique to connect already generated set of coordinates.
+    # only checks chain bending in the backward direction, not in the forward direction!
+
+    # monte carlo cutoff 
+    twostepcutoff = 1.02/0.97 * l
+
+    # chains should be a list of numpy arrays of coordinates of polymers
+    # block is the numpy array of coordinates of the each chain in chains        
+    
+    coords = []
+    vertices = []
+    vertex_temp = [0,0,0]
+    vertices.append(vertex_temp)
+    # loop over each backbone block
+    for i in range(n_backbone_blocks):
+        
+        block = chains[i]
+        block_start = block[0,:]
+
+        # take a random step from a vertex (for first block, it is the origin)
+        while True:
+            randstep = np.random.rand(1,3) - 0.5
+            chainstart = vertices[-1] + l * randstep/np.linalg.norm(randstep)
+            twostepdist = np.linalg.norm(chainstart - block[-2,:])
+            if twostepdist > twostepcutoff:
+                break
+        # shift the coordinates of the block
+        shiftedblockcoords = block - block_start + chainstart
+        for row in shiftedblockcoords:
+            coords.append(row.tolist())
+        
+        # take a random step starting from last monomer of previous block (this is a vertex)
+        while True:
+            randstep = np.random.rand(1,3) - 0.5
+            chainstart = coords[-1] + l * randstep/np.linalg.norm(randstep)
+            twostepdist = np.linalg.norm(chainstart - block[-2,:])
+            if twostepdist > twostepcutoff:
+                break
+        
+        # use this vertex as the starting point for next block's random walk
+        vertex_temp = chainstart
+        vertices.append(vertex_temp.tolist())
+    
+    # remove the first and last element of vertices array (first = origin, last = end of backbone)
+    junction_coords = vertices[1:-1]
+    # loop over each graft block
+    for i in range(n_backbone_blocks, n_backbone_blocks + n_graft_blocks):
+        block = chains[i]
+        block_start = block[0,:]
+
+        # take a random step from a junction node
+        while True:
+            randstep = np.random.rand(1,3) - 0.5
+            chainstart = junction_coords[i-n_backbone_blocks] + l * randstep/np.linalg.norm(randstep)
+            twostepdist = np.linalg.norm(chainstart - block[-2,:])
+            if twostepdist > twostepcutoff:
+                break
+        # shift the coordinates of the block
+        shiftedblockcoords = block - block_start + chainstart
+        for row in shiftedblockcoords:
+            coords.append(row.tolist())   
+
+    for row in junction_coords[0]:
+            coords.append(row)
+    
+    print(coords)
+    
+    return coords
+
 def walk_linearPolymer(polymer: systemspec.LinearPolymerSpec):
 
     # walk each block of the polymer
@@ -142,7 +212,9 @@ def walk_graftPolymer(polymer: systemspec.BranchedPolymerSpec):
     # NOTE: this is an escapist solution. 
     # I need to find a way to account for different bond lengths l cleanly
     l = polymer.blocks[0].monomer.l
-    chain = connect_chains_linear(blockcoords, l)
+    n_graft_blocks = polymer.n_graft_blocks
+    n_backbone_blocks = polymer.n_backbone_blocks
+    chain = connect_chains_graft(blockcoords, n_graft_blocks, n_backbone_blocks, l)
 
     return chain
 
@@ -151,6 +223,7 @@ def walkComponent(component):
     num = component.N
     coordlist = []
     for i in range(num):
+        '''
         if isinstance(component.species, systemspec.LinearPolymerSpec):
             coordlist.append(walk_linearPolymer(component.species))  
         elif isinstance(component.species, systemspec.BranchedPolymerSpec):
@@ -160,6 +233,14 @@ def walkComponent(component):
                 coordlist.append(walk_graftPolymer(component.species))
         elif isinstance(component.species, systemspec.MonatomicMoleculeSpec):
             coordlist.append(np.array([0,0,0])) # will be placed randomly in placecomponent, called by systemCoords
+        '''
+        if component.species.shape == 'linear':
+            coordlist.append(walk_linearPolymer(component.species))  
+        if component.species.shape == 'star':
+            coordlist.append(walk_starPolymer(component.species))  
+        if component.species.shape == 'graft':
+            coordlist.append(walk_graftPolymer(component.species))  
+        
     
     # coordlist is a list of numpy arrays
     return coordlist

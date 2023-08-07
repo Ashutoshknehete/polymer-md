@@ -1,5 +1,6 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
+from collections import Counter
 
 class Species(metaclass=ABCMeta):
 
@@ -65,9 +66,19 @@ class LinearPolymerSpec(Species):
     def __init__(self, monomers, lengths):
         self.isPolymer = True
         self.nBlocks = len(monomers)
+        shape = 'linear'
         for i in range(self.nBlocks):
             self._blocks[i].monomer = monomers[i]
             self._blocks[i].length = lengths[i]
+
+    @property
+    def shape(self):
+        return self._shape
+    
+    @shape.setter
+    def shape(self, value):
+        self._shape = value
+        return    
     
     @property
     def nBlocks(self):
@@ -145,11 +156,48 @@ class BranchedPolymerSpec(Species):
         self.lengths = lengths
         self.vertex = vertex
         self.shape = shape
+        self.monomers = monomers
 
         for i in range(self.nBlocks):
             self._blocks[i].monomer = monomers[i]
             self._blocks[i].length = lengths[i]
+        return
+    
 
+    @classmethod
+    def star(cls, monomers, lengths, vertex):
+        shape = 'star'
+        vertexID0 = list(range(len(monomers)))
+        vertexID1 = [len(monomers)]*len(monomers)
+        poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
+        return poly
+    
+    @classmethod
+    def regulargraft(cls, backbone, backbone_length, sidechain, nsidechain, sidechainlength):
+        shape = 'graft'        
+        monomers = []
+        lengths = []
+        for i in range(nsidechain+1):
+            monomers.append(backbone)
+            lengths.append(backbone_length/(nsidechain+1))
+            
+        for i in range(nsidechain):
+            monomers.append(sidechain)
+            lengths.append(nsidechain)
+            
+        vertexID0 = []
+        poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
+        
+        return poly
+    
+    @classmethod
+    def customgraft(cls, monomers, lengths, vertex):
+        shape = 'graft'
+        vertexID0 = [0,1,2,1,2]
+        vertexID1 = [1,2,3,4,5]
+        poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
+        return poly
+    
     @property
     def length(self):
         return np.sum([block.length for block in self.blocks]) + len(self.junction_nodes)
@@ -187,8 +235,24 @@ class BranchedPolymerSpec(Species):
         for block in self.blocks:
             types += block.particletypes
         for i in range(len(self.junction_nodes)):
-            types += self.vertex[0].label
+            types += self.vertex.label
         return types
+    
+    @property
+    def n_backbone_blocks(self):
+        element_counts = Counter(self.monomers)
+        element_counts_dict = dict(element_counts)
+        first_element_key = list(element_counts_dict.keys())[0]
+        self._n_backbone_blocks = element_counts_dict[first_element_key]
+        return self._n_backbone_blocks
+
+    @property
+    def n_graft_blocks(self):
+        element_counts = Counter(self.monomers)
+        element_counts_dict = dict(element_counts)
+        second_element_key = list(element_counts_dict.keys())[1]
+        self._n_graft_blocks = element_counts_dict[second_element_key]
+        return self._n_graft_blocks
 
     @property
     def total_vertices(self):
@@ -201,9 +265,16 @@ class BranchedPolymerSpec(Species):
     def vertices(self):
         self._vertices = []
         for i in range(self.total_vertices):
-            self._vertices.append(self.vertex[0])
+            self._vertices.append(self.vertex)
         return self._vertices
-    
+
+    @property
+    def blocksID(self):
+        self._blocksID = []
+        for i in range(self.nBlocks):
+            self._blocksID.append([self.vertexID0[i],self.vertexID1[i]])
+        return self._blocksID
+
     @property
     def connectivity_count(self):
         # to how many vertices is each vertex connected?
@@ -226,6 +297,7 @@ class BranchedPolymerSpec(Species):
                 elif self.vertexID1[i] == vertex_index:
                     vertex_index_connectivity_list.append(self.vertexID0[i])
             self._connectivity_list.append(vertex_index_connectivity_list)
+        self._connectivity_list = [sorted(sublist) for sublist in self._connectivity_list]
         return self._connectivity_list
 
     @property
@@ -234,9 +306,11 @@ class BranchedPolymerSpec(Species):
         for vertex_index in range(self.total_vertices):
             vertex_index_connectivity_at_start_list = []
             for i in range(self.nBlocks): # note, len(vertexID0) = len(vertexID0) = nBlocks
-                if self.vertexID1[i] == vertex_index:
-                    vertex_index_connectivity_at_start_list.append(self.vertexID0[i])
+                if self.vertexID0[i] == vertex_index:
+                    vertex_index_connectivity_at_start_list.append(self.vertexID1[i])
             self._connectivity_at_start_list.append(vertex_index_connectivity_at_start_list)
+        self._connectivity_at_start_list = [sorted(sublist) for sublist in self._connectivity_at_start_list]
+
         return self._connectivity_at_start_list
     
     @property
@@ -245,33 +319,30 @@ class BranchedPolymerSpec(Species):
         for vertex_index in range(self.total_vertices):
             vertex_index_connectivity_at_end_list = []
             for i in range(self.nBlocks): # note, len(vertexID0) = len(vertexID0) = nBlocks
-                if self.vertexID0[i] == vertex_index:
-                    vertex_index_connectivity_at_end_list.append(self.vertexID1[i])
+                if self.vertexID1[i] == vertex_index:
+                    vertex_index_connectivity_at_end_list.append(self.vertexID0[i])
             self._connectivity_at_end_list.append(vertex_index_connectivity_at_end_list)
+        self._connectivity_at_end_list = [sorted(sublist) for sublist in self._connectivity_at_end_list]
         return self._connectivity_at_end_list
 
     @property
     def free_chain_ends(self):
-        # which vertices are free chain ends and which are junction nodes?
+        # which vertices are free chain ends?
         self._free_chain_ends = []
-        self._junction_nodes = []
         for vertex_index, vertex_index_connectivity_list in enumerate(self.connectivity_list):
             if len(vertex_index_connectivity_list) == 1:
                 self._free_chain_ends.append(vertex_index)
-            elif len(vertex_index_connectivity_list) > 1:
-                self._junction_nodes.append(vertex_index)
+        self._free_chain_ends.sort()
         return self._free_chain_ends
     
     @property
     def junction_nodes(self):
-        # which vertices are free chain ends and which are junction nodes?
-        self._free_chain_ends = []
+        # which vertices are junction nodes?
         self._junction_nodes = []
         for vertex_index, vertex_index_connectivity_list in enumerate(self.connectivity_list):
-            if len(vertex_index_connectivity_list) == 1:
-                self._free_chain_ends.append(vertex_index)
-            elif len(vertex_index_connectivity_list) > 1:
+            if len(vertex_index_connectivity_list) > 1:
                 self._junction_nodes.append(vertex_index)
+        self._junction_nodes.sort()
         return self._junction_nodes
 
     @property
@@ -295,6 +366,8 @@ class BranchedPolymerSpec(Species):
         for block_length in self.lengths:
             cumulative_sum += block_length
             cumulative_sum_end.append(cumulative_sum-1)
+        
+        blocks_ID = self.blocksID
 
         # connect all bonds in the branched polymer
         for block in self.blocks:
@@ -311,10 +384,14 @@ class BranchedPolymerSpec(Species):
 
             # get the list of all vertices connected to each junction node
             connected_vertices_list = self.connectivity_list[junction_node]
+            
+            for neighbour in connected_vertices_list:
+                if any(element == neighbour for element in self.connectivity_at_start_list[junction_node]):
+                    bonds.append([Ntot+junction_idx, cumulative_sum_start[neighbour-1]])
+                elif any(element == neighbour for element in self.connectivity_at_end_list[junction_node]):
+                    bonds.append([Ntot+junction_idx, cumulative_sum_end[neighbour]])
 
-            # 5 monomer is added as junction_idx = 0 (make it serially?)
-            self.connectivity_at_start_list.sort()
-            self.connectivity_at_end_list.sort()
+            '''
             # get the list of all vertices connected to each junction node when the junction node acts as the start of block
             for neighbour in self.connectivity_at_start_list[junction_node]:
                 bonds.append([Ntot+junction_idx, cumulative_sum_start[neighbour-1]])
@@ -322,6 +399,7 @@ class BranchedPolymerSpec(Species):
             # get the list of all vertices connected to each junction node when the junction node acts as the end of block
             for neighbour in self.connectivity_at_end_list[junction_node]:
                 bonds.append([Ntot+junction_idx, cumulative_sum_end[neighbour-1]])
+            '''
 
         return bonds
 
@@ -335,18 +413,39 @@ class BranchedPolymerSpec(Species):
             for i in range(1,block.length):
                 bondtypes.append('{:s}-{:s}'.format(block.monomer.label, block.monomer.label))
             # connect the blocks
-
+            
+        blocks_ID = self.blocksID
         # iterate over all vertices that are not chain free ends, to define the bond types of junction nodes' bonds
         for junction_idx, junction_node in enumerate(self.junction_nodes):
 
+            '''
             # fix this label
             # get the list of all vertices connected to each junction node when the junction node acts as the start of block
             for neighbour in self.connectivity_at_start_list[junction_node]:
-                bondtypes.append('{:s}-{:s}'.format(self.vertex[0].label, self.vertex[0].label))
+                bondtypes.append('{:s}-{:s}'.format(self.vertex.label, self.vertex.label))
 
             # get the list of all vertices connected to each junction node when the junction node acts as the end of block
             for neighbour in self.connectivity_at_end_list[junction_node]:
-                bondtypes.append('{:s}-{:s}'.format(self.vertex[0].label, self.vertex[0].label))
+                bondtypes.append('{:s}-{:s}'.format(self.vertex.label, self.vertex.label))
+                
+            # get the list of all vertices connected to each junction node
+            connected_vertices_list = self.connectivity_list[junction_node]
+            '''
+
+            # get the list of all vertices connected to each junction node
+            connected_vertices_list = self.connectivity_list[junction_node]
+            
+            for neighbour in connected_vertices_list:
+                if any(element == neighbour for element in self.connectivity_at_start_list[junction_node]):
+                    # find which element of block ID has first element == junction_node
+                    for index,block_ID in enumerate(blocks_ID):
+                        if block_ID[0] == junction_node and block_ID[1] == neighbour:
+                            bondtypes.append('{:s}-{:s}'.format(self.vertex.label, self.blocks[index].monomer.label))
+                elif any(element == neighbour for element in self.connectivity_at_end_list[junction_node]):
+                    # find which element of block ID has second element == junction_node
+                    for index,block_ID in enumerate(blocks_ID):
+                        if block_ID[1] == junction_node and block_ID[0] == neighbour:
+                            bondtypes.append('{:s}-{:s}'.format(self.vertex.label, self.blocks[index].monomer.label))
 
         return bondtypes
 
@@ -355,6 +454,7 @@ class MonatomicMoleculeSpec(Species):
     def __init__(self, monomer: MonomerSpec):
         self.isPolymer = False
         self._monomer = monomer
+        shape = 'monoatomic molecule'
         return
 
     @property
@@ -364,6 +464,15 @@ class MonatomicMoleculeSpec(Species):
     @property
     def length(self):
         return int(1)
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @shape.setter
+    def shape(self, value):
+        self._shape = value
+        return
     
     @property
     def particletypes(self):

@@ -22,7 +22,7 @@ def write_gsd_from_snapshot(snapshot, fname):
     return
 
 # System parameters
-l = 2
+l = 1
 L_x = 20
 L_y = 20
 L_z = 20
@@ -35,16 +35,19 @@ B = system.addMonomer('B',l)
 C = system.addMonomer('C',l)
 V = system.addMonomer('V',l)
 
+'''
 monomers = [A,B,C]
-lengths = [5,4,3]
-vertexID0 = [0,1,2]
-vertexID1 = [3,3,3]
-vertex = [V]
-shape = 'star'
-poly = systemspec.BranchedPolymerSpec(monomers, lengths, vertexID0, vertexID1, vertex, shape)
+lengths = [4,4,4]
+poly = systemspec.BranchedPolymerSpec.star(monomers,lengths,V)
+system.addComponent(poly, 1)
+'''
+
+monomers = [A,A,A,B,B]
+lengths = [3,3,3,2,2]
+poly = systemspec.BranchedPolymerSpec.customgraft(monomers,lengths,V)
 system.addComponent(poly, 1)
 
-'''
+
 print(poly.lengths)
 print(poly.bondtypes)
 print(poly.label)
@@ -57,7 +60,7 @@ print(poly.connectivity_count)
 print(poly.free_chain_ends)
 print(poly.junction_nodes)
 print(poly.bonds)
-'''
+
 
 snap = systemgen.build_snapshot(system,'random')
 if os.path.exists("struct/branched.gsd"):
