@@ -103,23 +103,18 @@ def connect_chains_star(chains, l):
 def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
     # uses the same montecarlo technique to connect already generated set of coordinates.
     # only checks chain bending in the backward direction, not in the forward direction!
-
     # monte carlo cutoff 
     twostepcutoff = 1.02/0.97 * l
-
     # chains should be a list of numpy arrays of coordinates of polymers
     # block is the numpy array of coordinates of the each chain in chains        
-    
     coords = []
     vertices = []
     vertex_temp = [0,0,0]
     vertices.append(vertex_temp)
     # loop over each backbone block
     for i in range(n_backbone_blocks):
-        
         block = chains[i]
         block_start = block[0,:]
-
         # take a random step from a vertex (for first block, it is the origin)
         while True:
             randstep = np.random.rand(1,3) - 0.5
@@ -131,7 +126,6 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
             coords.append(row.tolist())
-        
         # take a random step starting from last monomer of previous block (this is a vertex)
         while True:
             randstep = np.random.rand(1,3) - 0.5
@@ -139,18 +133,15 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
             twostepdist = np.linalg.norm(chainstart - block[-2,:])
             if twostepdist > twostepcutoff:
                 break
-        
         # use this vertex as the starting point for next block's random walk
         vertex_temp = chainstart
         vertices.append(vertex_temp.tolist())
-    
     # remove the first and last element of vertices array (first = origin, last = end of backbone)
     junction_coords = vertices[1:-1]
     # loop over each graft block
     for i in range(n_backbone_blocks, n_backbone_blocks + n_graft_blocks):
         block = chains[i]
         block_start = block[0,:]
-
         # take a random step from a junction node
         while True:
             randstep = np.random.rand(1,3) - 0.5
@@ -161,13 +152,10 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
         # shift the coordinates of the block
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
-            coords.append(row.tolist())   
-
-    for row in junction_coords[0]:
-            coords.append(row)
-    
-    print(coords)
-    
+            coords.append(row.tolist())
+    # add the junction nodes to the coords list
+    for row in junction_coords:
+            coords.append(row[0])
     return coords
 
 def walk_linearPolymer(polymer: systemspec.LinearPolymerSpec):
@@ -207,7 +195,6 @@ def walk_graftPolymer(polymer: systemspec.BranchedPolymerSpec):
     blockcoords = []
     for block in polymer.blocks:
         blockcoords.append(mc_chain_walk(block.length, block.monomer.l))
-
     # connect them
     # NOTE: this is an escapist solution. 
     # I need to find a way to account for different bond lengths l cleanly
@@ -240,8 +227,6 @@ def walkComponent(component):
             coordlist.append(walk_starPolymer(component.species))  
         if component.species.shape == 'graft':
             coordlist.append(walk_graftPolymer(component.species))  
-        
-    
     # coordlist is a list of numpy arrays
     return coordlist
 
@@ -256,7 +241,6 @@ def placeComponent(coordlist, region, regioncenter=[0,0,0], COM=True):
     for i,coord in enumerate(coordlist):
         newcoord = (coord - comlist[i] + randcomlist[i,:]).reshape([-1,3]) # make sure correct dimensions even for single-atom molecules
         newcoordlist.append(newcoord)
-
     return newcoordlist
 
 def systemCoordsRandom(system):

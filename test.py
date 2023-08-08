@@ -22,10 +22,10 @@ def write_gsd_from_snapshot(snapshot, fname):
     return
 
 # System parameters
-l = 1
-L_x = 20
-L_y = 20
-L_z = 20
+l = 1.5
+L_x = 30
+L_y = 30
+L_z = 30
 
 # make system
 system = systemspec.System()
