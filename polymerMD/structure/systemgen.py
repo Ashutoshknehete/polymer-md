@@ -154,7 +154,6 @@ def walk_linearPolymer(polymer: systemspec.LinearPolymerSpec):
     blockcoords = []
     for block in polymer.blocks:
         blockcoords.append(mc_chain_walk(block.length, block.monomer.l))
-
     # connect them
     # NOTE: this is an escapist solution. 
     # I need to find a way to account for different bond lengths l cleanly
@@ -246,9 +245,7 @@ def systemCoordsBoxRegions(system, regions, regioncenters):
     # the intention is that these should be used to seed components as phase-separated in advance
      
     box = system.box[0:3]
-    
     syscoords = np.zeros((system.numparticles,3))
-
     totaladded = 0        
     for i,component in enumerate(system.components):
         # a list of coordinates for each instance of this component
@@ -279,7 +276,7 @@ def getBondTypes(system):
 
     return bonds, bondtypes, bondtypeid
 
-def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=True):
+def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=False):
 
     # get system box size, total number of particles, 
     box = system.box
@@ -294,6 +291,7 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=T
             raise ValueError("Lengths of regions and region centers don't match.")
         if len(regions) != system.nComponents:
             raise ValueError("Number of regions do not match number of components.") 
+        
         pos = systemCoordsBoxRegions(system, regions, regioncenters)
 
     # get particle indices, types, and type ids

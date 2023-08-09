@@ -38,10 +38,10 @@ def build_system_spec(M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms):
     
     # copolymer stuff 
     chain_monomer = A
-    chain_length = N_CP[0]
+    chain_length = N_CP[0] - 1
     arm_monomer = B
     total_arm_length = N_CP[1]
-    vertex = V
+    vertex = chain_monomer
     poly = systemspec.BranchedPolymerSpec.mikto_arm(chain_monomer, chain_length, arm_monomer, total_arm_length, n_arms, vertex)
     system.addComponent(poly, int(M_CP/2))
     system.addComponent(poly, int(M_CP/2))

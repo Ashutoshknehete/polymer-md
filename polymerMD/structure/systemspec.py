@@ -73,7 +73,7 @@ class LinearPolymerSpec(Species):
 
     @classmethod
     def linear(cls, monomers, lengths):
-        shape = 'star'
+        shape = 'linear'
         poly = cls(monomers, lengths, shape)
         return poly
 
