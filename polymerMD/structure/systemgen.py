@@ -22,16 +22,13 @@ def wrap_coords(coords,boxsize):
 def mc_chain_walk(N, l):
     # montecarlo chain walk with an acceptance condition based on whether the randoomly generated
     # step results in too much backtracking
-
     PolymerCoords = np.zeros((N,3))
     twostepcutoff = 1.02/0.97 * l
-    
     # "Monte carlo" loop where a random step is taken and only accepted if the distance isn't too far
     idx_mnr = 1
     while idx_mnr < N:
         randstep = np.random.rand(1,3) - 0.5
         newcoord = PolymerCoords[idx_mnr-1,:] + randstep * l/np.linalg.norm(randstep)
-
         if idx_mnr >= 2:
             twostepdist = np.linalg.norm(newcoord - PolymerCoords[idx_mnr-2])
             if twostepdist < twostepcutoff:
@@ -46,14 +43,11 @@ def mc_chain_walk(N, l):
 def connect_chains_linear(chains, l):
     # uses the same montecarlo technique to connect already generated set of coordinates.
     # only checks chain bending in the backward direction, not in the forward direction!
-
     # monte carlo cutoff 
     twostepcutoff = 1.02/0.97 * l
-
     # chains should be a list of numpy arrays of coordinates of polymers
     # chain is the numpy array of coordinates of the final chain
     chain = chains[0]
-    
     for i in range(1,len(chains)):
         chainend = chain[-1,:]
         # get a valid starting point for the next block
@@ -71,33 +65,21 @@ def connect_chains_linear(chains, l):
 def connect_chains_star(chains, l):
     # uses the same montecarlo technique to connect already generated set of coordinates.
     # only checks chain bending in the backward direction, not in the forward direction!
-
     # monte carlo cutoff 
     twostepcutoff = 1.02/0.97 * l
-
     # chains should be a list of numpy arrays of coordinates of polymers
     # block is the numpy array of coordinates of the each chain in chains        
-    
     coords = []
     junction_coords = [0,0,0]
-    
     for i in range(len(chains)):
-        
         block = chains[i]
         block_start = block[0,:]
-
-        while True:
-            randstep = np.random.rand(1,3) - 0.5
-            chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
-            twostepdist = np.linalg.norm(chainstart - block[-2,:])
-            if twostepdist > twostepcutoff:
-                break
+        randstep = np.random.rand(1,3) - 0.5
+        chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
-            coords.append(row.tolist())
-                    
+            coords.append(row.tolist())      
     coords.append(junction_coords)
-        
     return coords
 
 def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
@@ -113,24 +95,28 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
     vertices.append(vertex_temp)
     # loop over each backbone block
     for i in range(n_backbone_blocks):
-        block = chains[i]
-        block_start = block[0,:]
         # take a random step from a vertex (for first block, it is the origin)
-        while True:
+        if i == 0: # no need to check anything since its the first block of backbone
             randstep = np.random.rand(1,3) - 0.5
             chainstart = vertices[-1] + l * randstep/np.linalg.norm(randstep)
-            twostepdist = np.linalg.norm(chainstart - block[-2,:])
-            if twostepdist > twostepcutoff:
-                break
+        else: # need to check distance from previous block's second last monomer to prevent backfolding
+            while True:
+                randstep = np.random.rand(1,3) - 0.5
+                chainstart = vertices[-1] + l * randstep/np.linalg.norm(randstep)
+                twostepdist = np.linalg.norm(chainstart - shiftedblockcoords[-1,:])
+                if twostepdist > twostepcutoff:
+                    break
+        block = chains[i]
+        block_start = block[0,:]
         # shift the coordinates of the block
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
             coords.append(row.tolist())
-        # take a random step starting from last monomer of previous block (this is a vertex)
+        # take a random step starting from last monomer of previous block (this is the creation of a vertex)
         while True:
             randstep = np.random.rand(1,3) - 0.5
             chainstart = coords[-1] + l * randstep/np.linalg.norm(randstep)
-            twostepdist = np.linalg.norm(chainstart - block[-2,:])
+            twostepdist = np.linalg.norm(chainstart - block[-2,:]) # check the distance from second last monomer of backbone block from this created vertex
             if twostepdist > twostepcutoff:
                 break
         # use this vertex as the starting point for next block's random walk
@@ -140,14 +126,18 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
     junction_coords = vertices[1:-1]
     # loop over each graft block
     for i in range(n_backbone_blocks, n_backbone_blocks + n_graft_blocks):
-        block = chains[i]
+        block = chains[i] # this is a graft block
         block_start = block[0,:]
+        # following two blocks are the backbone blocks connected to the graft block, we need these to check distances during random walk of graft block
+        backbone_block_prev = chains[i - n_backbone_blocks]
+        backbone_block_next = chains[i - n_backbone_blocks + 1]
         # take a random step from a junction node
         while True:
             randstep = np.random.rand(1,3) - 0.5
             chainstart = junction_coords[i-n_backbone_blocks] + l * randstep/np.linalg.norm(randstep)
-            twostepdist = np.linalg.norm(chainstart - block[-2,:])
-            if twostepdist > twostepcutoff:
+            twostepdist_prev = np.linalg.norm(chainstart - backbone_block_prev[-1,:])
+            twostepdist_next = np.linalg.norm(chainstart - backbone_block_next[0,:])
+            if twostepdist_prev > twostepcutoff and twostepdist_next > twostepcutoff:
                 break
         # shift the coordinates of the block
         shiftedblockcoords = block - block_start + chainstart
@@ -179,11 +169,9 @@ def walk_starPolymer(polymer: systemspec.BranchedPolymerSpec):
     blockcoords = []
     for block in polymer.blocks:
         blockcoords.append(mc_chain_walk(block.length, block.monomer.l))
-
     # connect them
     # NOTE: this is an escapist solution. 
     # I need to find a way to account for different bond lengths l cleanly
-    
     l = polymer.blocks[0].monomer.l
     coords = connect_chains_star(blockcoords, l)
 
@@ -210,23 +198,14 @@ def walkComponent(component):
     num = component.N
     coordlist = []
     for i in range(num):
-        '''
-        if isinstance(component.species, systemspec.LinearPolymerSpec):
-            coordlist.append(walk_linearPolymer(component.species))  
-        elif isinstance(component.species, systemspec.BranchedPolymerSpec):
-            if component.shape == 'star':
-                coordlist.append(walk_starPolymer(component.species))
-            if component.shape == 'graft':
-                coordlist.append(walk_graftPolymer(component.species))
-        elif isinstance(component.species, systemspec.MonatomicMoleculeSpec):
-            coordlist.append(np.array([0,0,0])) # will be placed randomly in placecomponent, called by systemCoords
-        '''
         if component.species.shape == 'linear':
             coordlist.append(walk_linearPolymer(component.species))  
-        if component.species.shape == 'star':
-            coordlist.append(walk_starPolymer(component.species))  
-        if component.species.shape == 'graft':
-            coordlist.append(walk_graftPolymer(component.species))  
+        elif component.species.shape == 'star':
+            coordlist.append(walk_starPolymer(component.species))
+        elif component.species.shape == 'graft':
+            coordlist.append(walk_graftPolymer(component.species))
+        elif component.species.shape == 'monoatomic':
+            coordlist.append(np.array([0,0,0])) # will be placed randomly in placecomponent, called by systemCoords
     # coordlist is a list of numpy arrays
     return coordlist
 
@@ -246,10 +225,8 @@ def placeComponent(coordlist, region, regioncenter=[0,0,0], COM=True):
 def systemCoordsRandom(system):
 
     box = system.box[0:3]
-    
     syscoords = np.zeros((system.numparticles,3))
-
-    totaladded = 0        
+    totaladded = 0
     for component in system.components:
         # a list of coordinates for each instance of this component
         coordlist = walkComponent(component)
@@ -337,7 +314,6 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=T
     frame.bonds.types = bondtypes
     frame.bonds.typeid = bondtypeid
     frame.bonds.group = bondgroup
-
     if verbose:
         print("Number of particles:             N = {:d}".format(N))
         print("Number of positions:             pos.shape[0] = {:d}".format(pos.shape[0]))
@@ -347,4 +323,8 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=T
         print("Number of bond types:            len(bondtypes) = {:d}".format(len(bondtypes)))
         print("Number of bond type ids:         len(bondtypeid) = {:d}".format(len(bondtypeid)))
         print("Number of bond groups:           len(bondgroup) = {:d}".format(len(bondgroup)))
+        print("bond types:                      bond types = ",bondtypes)
+        print("bond typeID:                     bond typeID = ",bondtypeid)
+        print("bond groups:                     bond groups = ",bondgroup)
+              
     return frame

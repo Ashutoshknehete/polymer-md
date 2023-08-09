@@ -63,13 +63,19 @@ class BlockSpec:
 
 class LinearPolymerSpec(Species):
 
-    def __init__(self, monomers, lengths):
+    def __init__(self, monomers, lengths, shape):
         self.isPolymer = True
         self.nBlocks = len(monomers)
-        shape = 'linear'
+        self.shape = shape
         for i in range(self.nBlocks):
             self._blocks[i].monomer = monomers[i]
             self._blocks[i].length = lengths[i]
+
+    @classmethod
+    def linear(cls, monomers, lengths):
+        shape = 'star'
+        poly = cls(monomers, lengths, shape)
+        return poly
 
     @property
     def shape(self):
@@ -171,30 +177,61 @@ class BranchedPolymerSpec(Species):
         vertexID1 = [len(monomers)]*len(monomers)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
         return poly
-    
+
     @classmethod
-    def regulargraft(cls, backbone, backbone_length, sidechain, nsidechain, sidechainlength):
-        shape = 'graft'        
+    def mikto_arm(cls, chain_monomer, chain_length, arm_monomer, total_arm_length, n_arms, vertex):
+        shape = 'star'
+        vertexID0 = []
+        vertexID1 = []
         monomers = []
         lengths = []
-        for i in range(nsidechain+1):
-            monomers.append(backbone)
-            lengths.append(backbone_length/(nsidechain+1))
-            
-        for i in range(nsidechain):
-            monomers.append(sidechain)
-            lengths.append(nsidechain)
-            
-        vertexID0 = []
+        monomers.append(chain_monomer)
+        lengths.append(chain_length)
+        arm_length = int(total_arm_length/n_arms)
+        for i in range(n_arms):
+            monomers.append(arm_monomer)
+            lengths.append(arm_length)
+        vertexID0 = list(range(len(monomers)))
+        vertexID1 = [len(monomers)]*len(monomers)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
-        
         return poly
-    
+
     @classmethod
     def customgraft(cls, monomers, lengths, vertex):
         shape = 'graft'
-        vertexID0 = [0,1,2,1,2]
+        # specify your custom topology here
+        vertexID0 = [0,1,2,1,2] 
         vertexID1 = [1,2,3,4,5]
+        poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
+        return poly
+    
+    @classmethod
+    def regulargraft(cls, backbone, backbone_length, sidechain, total_sidechain_length, n_sidechain, vertex):
+        # backbone and sidechain are monomer objects A and B
+        shape = 'graft'
+        sidechain_length = int(total_sidechain_length/n_sidechain)
+        n_backbone_blocks = n_sidechain + 1
+        n_junctions = n_sidechain
+        backbone_block_length = int((backbone_length - n_junctions)/n_backbone_blocks)
+        monomers = []
+        lengths = []
+        for i in range(n_backbone_blocks-1):
+            monomers.append(backbone)
+            lengths.append(backbone_block_length)
+        monomers.append(backbone)
+        lengths.append(backbone_length - (n_backbone_blocks-1)*backbone_block_length - n_sidechain)
+
+        for i in range(n_sidechain):
+            monomers.append(sidechain)
+            lengths.append(sidechain_length)
+        vertexID0 = []
+        vertexID1 = []
+        for i in range(n_backbone_blocks):
+            vertexID0.append(i)
+            vertexID1.append(i+1)
+        for i in range(n_sidechain):
+            vertexID0.append(i+1)
+            vertexID1.append(n_backbone_blocks+i+1)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
         return poly
     
@@ -451,11 +488,17 @@ class BranchedPolymerSpec(Species):
 
 class MonatomicMoleculeSpec(Species):
 
-    def __init__(self, monomer: MonomerSpec):
+    def __init__(self, monomer: MonomerSpec, shape):
         self.isPolymer = False
         self._monomer = monomer
-        shape = 'monoatomic molecule'
+        self.shape = shape
         return
+
+    @classmethod
+    def monoatomic(cls, monomer):
+        shape = 'monoatomic'
+        poly = cls(monomer, shape)
+        return poly
 
     @property
     def label(self):

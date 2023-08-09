@@ -30,11 +30,10 @@ def build_system_spec(M_A, N_A, M_B, N_B, M_CP, N_CP):
     system = systemspec.System()
     A = system.addMonomer('A',l)
     B = system.addMonomer('B',l)
-    poly_A = systemspec.LinearPolymerSpec([A], [N_A])
-    poly_B = systemspec.LinearPolymerSpec([B], [N_B])
+    poly_A = systemspec.LinearPolymerSpec.linear([A], [N_A])
+    poly_B = systemspec.LinearPolymerSpec.linear([B], [N_B])
     system.addComponent(poly_A, M_A)
     system.addComponent(poly_B, M_B)
-
     # copolymer stuff 
     if M_CP != 0 and N_CP[0] != 0:
         nblocks = len(N_CP)
@@ -46,10 +45,9 @@ def build_system_spec(M_A, N_A, M_B, N_B, M_CP, N_CP):
                 cpBlocks.append(A)
             else:
                 cpBlocks.append(B)
-        poly_CP = systemspec.LinearPolymerSpec(cpBlocks, N_CP)
+        poly_CP = systemspec.LinearPolymerSpec.linear(cpBlocks, N_CP)
         system.addComponent(poly_CP, int(M_CP/2))
         system.addComponent(poly_CP, int(M_CP/2)) # two groups for two different regions...
-
     return system
 
 def build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, aspect):
@@ -139,6 +137,8 @@ if os.path.exists("struct/random.gsd"):
 with gsd.hoomd.open(name="struct/random.gsd", mode='xb') as f:
     f.append(snap_random)
 
+'''
+
 if os.path.exists("struct/relax.gsd"):
         os.remove("struct/relax.gsd")
 
@@ -159,4 +159,4 @@ snap_equil = gsd.hoomd.open("struct/equil.gsd", mode='rb')[0]
 state_prod = _production(snap_equil, kT=1, epsilonAB=1, flog="prod.log.gsd")
 hoomd.write.GSD.write(state=state_prod, filename="struct/prod.gsd", mode='xb')
 
-
+'''
