@@ -35,12 +35,12 @@ B = system.addMonomer('B',l)
 C = system.addMonomer('C',l)
 V = system.addMonomer('V',l)
 
-'''
 monomers = [A,B,C]
 lengths = [3,3,3]
 poly = systemspec.BranchedPolymerSpec.star(monomers,lengths,V)
 system.addComponent(poly, 1)
 
+'''
 monomers = [A,A,A,B,B]
 lengths = [3,3,3,2,2]
 poly = systemspec.BranchedPolymerSpec.customgraft(monomers,lengths,V)
@@ -55,7 +55,6 @@ vertex = V
 poly = systemspec.BranchedPolymerSpec.mikto_arm(chain_monomer, chain_length, arm_monomer, total_arm_length, n_arms, vertex)
 system.addComponent(poly, 1)
 
-'''
 backbone = A
 backbone_length = 11
 sidechain = B
@@ -77,7 +76,7 @@ print(poly.connectivity_count)
 print(poly.free_chain_ends)
 print(poly.junction_nodes)
 print(poly.bonds)
-
+'''
 
 snap = systemgen.build_snapshot(system,'random')
 if os.path.exists("struct/branched.gsd"):

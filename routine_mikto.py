@@ -12,7 +12,6 @@ from polymerMD.structure import systemspec, systemgen
 from polymerMD.simtools import sim_routines
 from polymerMD.analysis import trajtools, statistics
 
-
 ### underlying functions for operations to be performed that know nothing about FlowProject API
 def compute_box_dimensions(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, aspect):
     n_beads = N_A*M_A + N_B*M_B + M_CP*sum(N_CP)
@@ -111,19 +110,14 @@ def _production(snap_initial, kT, epsilonAB, flog, iterations=10000, period=5000
     state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, flog=flog)
     return state_prod
 
-def write_gsd_from_snapshot(snapshot, fname):
-    with gsd.hoomd.open(name=fname, mode='xb') as f:
-            f.append(snapshot)
-    return
-
 # System parameters
-N_A = 8
-M_A = 124
-N_B = 8
-M_B = 124
+N_A = 64
+M_A = 1024
+N_B = 64
+M_B = 1024
 N_CP = [16,16]
-M_CP = 4
-n_arms = 2
+M_CP = 96
+n_arms = 4
 rho = 0.85
 aspect = 0.544
 

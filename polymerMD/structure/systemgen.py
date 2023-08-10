@@ -59,7 +59,6 @@ def connect_chains_linear(chains, l):
                 break
         combinedchaincoords = chains[i] - chains[i][0,:] + chainstart
         chain = np.append(chain, combinedchaincoords, axis = 0)
-
     return chain
 
 def connect_chains_star(chains, l):
@@ -78,8 +77,8 @@ def connect_chains_star(chains, l):
         chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
-            coords.append(row.tolist())      
-    coords.append(junction_coords)
+            coords.append(row.tolist())
+    coords.append(junction_coords) 
     return coords
 
 def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
@@ -122,7 +121,7 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
         # use this vertex as the starting point for next block's random walk
         vertex_temp = chainstart
         vertices.append(vertex_temp.tolist())
-    # remove the first and last element of vertices array (first = origin, last = end of backbone)
+    # remove the first and last element of vertices array (first = origin, last = hypothetical vertex created at the end of backbone)
     junction_coords = vertices[1:-1]
     # loop over each graft block
     for i in range(n_backbone_blocks, n_backbone_blocks + n_graft_blocks):
@@ -149,7 +148,6 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
     return coords
 
 def walk_linearPolymer(polymer: systemspec.LinearPolymerSpec):
-
     # walk each block of the polymer
     blockcoords = []
     for block in polymer.blocks:
@@ -159,11 +157,9 @@ def walk_linearPolymer(polymer: systemspec.LinearPolymerSpec):
     # I need to find a way to account for different bond lengths l cleanly
     l = polymer.blocks[0].monomer.l
     chain = connect_chains_linear(blockcoords, l)
-
     return chain
 
 def walk_starPolymer(polymer: systemspec.BranchedPolymerSpec):
-
     # walk each block of the polymer
     blockcoords = []
     for block in polymer.blocks:
@@ -173,11 +169,9 @@ def walk_starPolymer(polymer: systemspec.BranchedPolymerSpec):
     # I need to find a way to account for different bond lengths l cleanly
     l = polymer.blocks[0].monomer.l
     coords = connect_chains_star(blockcoords, l)
-
     return coords
 
 def walk_graftPolymer(polymer: systemspec.BranchedPolymerSpec):
-
     # walk each block of the polymer
     blockcoords = []
     for block in polymer.blocks:
@@ -189,7 +183,6 @@ def walk_graftPolymer(polymer: systemspec.BranchedPolymerSpec):
     n_graft_blocks = polymer.n_graft_blocks
     n_backbone_blocks = polymer.n_backbone_blocks
     chain = connect_chains_graft(blockcoords, n_graft_blocks, n_backbone_blocks, l)
-
     return chain
 
 def walkComponent(component):
@@ -222,7 +215,6 @@ def placeComponent(coordlist, region, regioncenter=[0,0,0], COM=True):
     return newcoordlist
 
 def systemCoordsRandom(system):
-
     box = system.box[0:3]
     syscoords = np.zeros((system.numparticles,3))
     totaladded = 0
@@ -236,14 +228,13 @@ def systemCoordsRandom(system):
             nchain = coord.shape[0]
             syscoords[totaladded:totaladded+nchain,:] = coord
             totaladded += nchain
-    syscoords = wrap_coords(syscoords, box)
+        syscoords = wrap_coords(syscoords, box)
+    
     return syscoords
 
 def systemCoordsBoxRegions(system, regions, regioncenters):
-
     # regions is a list of regions with length equal to the number of components
     # the intention is that these should be used to seed components as phase-separated in advance
-     
     box = system.box[0:3]
     syscoords = np.zeros((system.numparticles,3))
     totaladded = 0        
@@ -257,7 +248,6 @@ def systemCoordsBoxRegions(system, regions, regioncenters):
             nchain = coord.shape[0]
             syscoords[totaladded:totaladded+nchain,:] = coord
             totaladded += nchain
-
     syscoords = wrap_coords(syscoords, box)
     return syscoords
 
@@ -306,6 +296,21 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=F
     frame.configuration.box = box
     frame.particles.N = N
     frame.particles.position = pos
+    '''
+    print('vertex to arms bond lengths')
+    print(np.linalg.norm(np.array(pos[0])-np.array(pos[9])))   
+    print(np.linalg.norm(np.array(pos[3])-np.array(pos[9])))
+    print(np.linalg.norm(np.array(pos[6])-np.array(pos[9])))  
+    print('first arm bond lengths')
+    print(np.linalg.norm(np.array(pos[0])-np.array(pos[1])))   
+    print(np.linalg.norm(np.array(pos[1])-np.array(pos[2])))
+    print('second arm bond lengths')
+    print(np.linalg.norm(np.array(pos[3])-np.array(pos[4])))   
+    print(np.linalg.norm(np.array(pos[4])-np.array(pos[5])))
+    print('third arm bond lengths')
+    print(np.linalg.norm(np.array(pos[6])-np.array(pos[7])))   
+    print(np.linalg.norm(np.array(pos[7])-np.array(pos[8])))
+    '''
     frame.particles.types = types
     frame.particles.typeid = typeid 
     frame.bonds.N = nBonds
