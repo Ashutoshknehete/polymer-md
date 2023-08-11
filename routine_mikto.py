@@ -123,31 +123,28 @@ aspect = 0.544
 
 snap_random = build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms, aspect)
 
-if os.path.exists("struct/random.gsd"):
-        os.remove("struct/random.gsd")
+if os.path.exists("random.gsd"):
+        os.remove("random.gsd")
 
-with gsd.hoomd.open(name="struct/random.gsd", mode='xb') as f:
+with gsd.hoomd.open(name="random.gsd", mode='xb') as f:
     f.append(snap_random)
 
-'''
-if os.path.exists("struct/relax.gsd"):
-        os.remove("struct/relax.gsd")
+if os.path.exists("relax.gsd"):
+        os.remove("relax.gsd")
 
 state_relax = _relax(snap_random)
 hoomd.write.GSD.write(state=state_relax, filename="struct/relax.gsd", mode='xb')
 
-if os.path.exists("struct/equil.gsd"):
-        os.remove("struct/equil.gsd")
+if os.path.exists("equil.gsd"):
+        os.remove("equil.gsd")
 
-snap_relax = gsd.hoomd.open("struct/relax.gsd", mode='rb')[0]
-state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1)
-hoomd.write.GSD.write(state=state_equil, filename="struct/equil.gsd", mode='xb')
+snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
+state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1, ftraj='equil_traj.gsd')
+hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
-if os.path.exists("struct/prod.gsd"):
-        os.remove("struct/prod.gsd")
+if os.path.exists("prod.gsd"):
+        os.remove("prod.gsd")
 
-snap_equil = gsd.hoomd.open("struct/equil.gsd", mode='rb')[0]
-state_prod = _production(snap_equil, kT=1, epsilonAB=1, flog="prod.log.gsd")
-hoomd.write.GSD.write(state=state_prod, filename="struct/prod.gsd", mode='xb')
-
-'''
+snap_equil = gsd.hoomd.open("equil.gsd", mode='rb')[0]
+state_prod = _production(snap_equil, kT=1, epsilonAB=1, ftraj='prod_traj.gsd', flog="prod.log.gsd")
+hoomd.write.GSD.write(state=state_prod, filename="prod.gsd", mode='xb')

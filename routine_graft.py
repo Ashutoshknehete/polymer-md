@@ -81,21 +81,20 @@ def build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms, aspe
 
 def _relax(snap_initial):
     # simulation devices
-    #cpu = hoomd.device.CPU()
-    gpu = hoomd.device.GPU()
+    cpu = hoomd.device.CPU()
+    #gpu = hoomd.device.GPU()
     # system parameters, set arbitrarily for relaxation
     kT = 1.0
     epsilonAB = 5.0
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
-    #state_relax = sim_routines.relax_overlaps_AB(state_overlap.get_snapshot(), cpu, epsilonAB, iterations=10)
-    state_relax = sim_routines.relax_overlaps_AB(snap_initial, gpu, epsilonAB, iterations=1000000)
+    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=50000)
 
     return state_relax
 
-def _equilibrate(snap_initial, kT, epsilonAB, ftraj, iterations=50000000):
-    gpu = hoomd.device.GPU()
-    #cpu = hoomd.device.CPU()
-    state_equil = sim_routines.equilibrate_AB(snap_initial, gpu, epsilonAB, kT, iterations=iterations,ftraj=ftraj)
+def _equilibrate(snap_initial, kT, epsilonAB, ftraj, iterations=10000):
+    #gpu = hoomd.device.GPU()
+    cpu = hoomd.device.CPU()
+    state_equil = sim_routines.equilibrate_AB(snap_initial, cpu, epsilonAB, kT, iterations=iterations,ftraj=ftraj)
     return state_equil
 
 def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, iterations=10000000, period=10000):
@@ -104,12 +103,12 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=10000000, period=5000):
-    gpu = hoomd.device.GPU()
-    #cpu = hoomd.device.CPU()
-    state_prod = sim_routines.production(snap_initial, gpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)
+def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=10000, period=10):
+    #gpu = hoomd.device.GPU()
+    cpu = hoomd.device.CPU()
+    state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)
     return state_prod
-
+ 
 # System parameters
 N_A = 64
 M_A = 1024
@@ -123,28 +122,28 @@ aspect = 0.544
 
 snap_random = build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms, aspect)
 
-if os.path.exists("struct/random.gsd"):
-        os.remove("struct/random.gsd")
+if os.path.exists("random.gsd"):
+        os.remove("random.gsd")
 
-with gsd.hoomd.open(name="struct/random.gsd", mode='xb') as f:
+with gsd.hoomd.open(name="random.gsd", mode='xb') as f:
     f.append(snap_random)
 
-if os.path.exists("struct/relax.gsd"):
-        os.remove("struct/relax.gsd")
+if os.path.exists("relax.gsd"):
+        os.remove("relax.gsd")
 
 state_relax = _relax(snap_random)
 hoomd.write.GSD.write(state=state_relax, filename="struct/relax.gsd", mode='xb')
 
-if os.path.exists("struct/equil.gsd"):
-        os.remove("struct/equil.gsd")
+if os.path.exists("equil.gsd"):
+        os.remove("equil.gsd")
 
-snap_relax = gsd.hoomd.open("struct/relax.gsd", mode='rb')[0]
+snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
 state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1, ftraj='equil_traj.gsd')
-hoomd.write.GSD.write(state=state_equil, filename="struct/equil.gsd", mode='xb')
+hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
-if os.path.exists("struct/prod.gsd"):
-        os.remove("struct/prod.gsd")
+if os.path.exists("prod.gsd"):
+        os.remove("prod.gsd")
 
-snap_equil = gsd.hoomd.open("struct/equil.gsd", mode='rb')[0]
+snap_equil = gsd.hoomd.open("equil.gsd", mode='rb')[0]
 state_prod = _production(snap_equil, kT=1, epsilonAB=1, ftraj='prod_traj.gsd', flog="prod.log.gsd")
-hoomd.write.GSD.write(state=state_prod, filename="struct/prod.gsd", mode='xb')
+hoomd.write.GSD.write(state=state_prod, filename="prod.gsd", mode='xb')
