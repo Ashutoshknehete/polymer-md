@@ -139,12 +139,12 @@ def relax_overlaps_AB(initial_state, device, epsAB, iterations, fname=None):
         feneParam[bondtype] = bondParam
 
     # newtonian NVE dynamics with limit on displacement
-    displ = hoomd.variant.Ramp(0.0001,0.00001,0,iterations)
+    displ = hoomd.variant.Ramp(0.000001,0.000001,0,iterations)
     nveCapped = hoomd.md.methods.DisplacementCapped(filter=hoomd.filter.All(), maximum_displacement=displ)
     methods = [nveCapped]
 
     # update period
-    period = 100
+    period = 1000
     
     sim = setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, feneParam, methods, fstruct=fname)
     sim.run(iterations)
@@ -486,7 +486,7 @@ def setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, f
         trajlog.add(sim, ['timestep'])
         trigger = hoomd.trigger.Periodic(period)
         log_writer = hoomd.write.GSD(filename=flog, trigger=trigger, mode='wb', filter=hoomd.filter.Null())
-        log_writer.log = trajlog
+        log_writer.logger = trajlog # .log replaced by .logger for version compatibility on MSI
         sim.operations.writers.append(log_writer)
 
     # add table logging

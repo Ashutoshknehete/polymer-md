@@ -13,7 +13,6 @@ from polymerMD.simtools import sim_routines
 from polymerMD.analysis import trajtools, statistics
 import matplotlib.pyplot as plt
 
-'''
 print("Computing interfacial tension")
 # load log and structure data
 dat = gsd.hoomd.open("prod.log.gsd",'rb')
@@ -50,18 +49,16 @@ n,avgRsq = trajtools.internaldistances_all(snap)
 with open("internaldistances_all.pkl", 'wb') as f:
     pickle.dump((n,avgRsq),f)
 
-'''
-
 with open('density_1D_monomers.pkl', 'rb') as f:
     data = pickle.load(f)
 fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot()
 ax.plot(data['A'][1][0:100], data['A'][0])
-plt.show()
+plt.savefig('density.png')
 
 with open('internaldistances_all.pkl', 'rb') as f:
     data = pickle.load(f)
 fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot()
 ax.plot(data[0], data[1])
-plt.show()
+plt.savefig('internaldist.png')

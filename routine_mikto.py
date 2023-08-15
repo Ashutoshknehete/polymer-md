@@ -104,7 +104,7 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, flog, iterations=10000, period=5000):
+def _production(snap_initial, kT, epsilonAB, flog, iterations=10000, period=100):
     #gpu = hoomd.device.GPU()
     cpu = hoomd.device.CPU()
     state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, flog=flog)
@@ -133,7 +133,7 @@ if os.path.exists("relax.gsd"):
         os.remove("relax.gsd")
 
 state_relax = _relax(snap_random)
-hoomd.write.GSD.write(state=state_relax, filename="struct/relax.gsd", mode='xb')
+hoomd.write.GSD.write(state=state_relax, filename="relax.gsd", mode='xb')
 
 if os.path.exists("equil.gsd"):
         os.remove("equil.gsd")

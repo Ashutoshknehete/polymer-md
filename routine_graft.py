@@ -87,7 +87,7 @@ def _relax(snap_initial):
     kT = 1.0
     epsilonAB = 5.0
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
-    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=50000)
+    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=10000)
 
     return state_relax
 
@@ -132,13 +132,13 @@ if os.path.exists("relax.gsd"):
         os.remove("relax.gsd")
 
 state_relax = _relax(snap_random)
-hoomd.write.GSD.write(state=state_relax, filename="struct/relax.gsd", mode='xb')
+hoomd.write.GSD.write(state=state_relax, filename="relax.gsd", mode='xb')
 
 if os.path.exists("equil.gsd"):
         os.remove("equil.gsd")
 
 snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
-state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1, ftraj='equil_traj.gsd')
+state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1, ftraj=None)
 hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
 if os.path.exists("prod.gsd"):

@@ -106,24 +106,24 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, flog, iterations=10000, period=5000):
+def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=10000, period=10):
     #gpu = hoomd.device.GPU()
     cpu = hoomd.device.CPU()
-    state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, flog=flog)
+    state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)
     return state_prod
 
 # System parameters
 N_A = 64
-M_A = 1024
+M_A = 10
 N_B = 64
-M_B = 1024
+M_B = 10
 N_CP = [16,16]
-M_CP = 96
+M_CP = 9
 n_arms = 4
 rho = 0.85
 aspect = 0.544
 
-snap_random = build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms, aspect)
+snap_random = build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, aspect)
 
 if os.path.exists("random.gsd"):
         os.remove("random.gsd")
@@ -135,13 +135,13 @@ if os.path.exists("relax.gsd"):
         os.remove("relax.gsd")
 
 state_relax = _relax(snap_random)
-hoomd.write.GSD.write(state=state_relax, filename="struct/relax.gsd", mode='xb')
+hoomd.write.GSD.write(state=state_relax, filename="relax.gsd", mode='xb')
 
 if os.path.exists("equil.gsd"):
         os.remove("equil.gsd")
 
 snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
-state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1, ftraj='equil_traj.gsd')
+state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1)
 hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
 if os.path.exists("prod.gsd"):
