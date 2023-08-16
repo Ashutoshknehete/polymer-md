@@ -70,11 +70,24 @@ def connect_chains_star(chains, l):
     # block is the numpy array of coordinates of the each chain in chains        
     coords = []
     junction_coords = [0,0,0]
+    chain_starts = []
     for i in range(len(chains)):
         block = chains[i]
         block_start = block[0,:]
-        randstep = np.random.rand(1,3) - 0.5
-        chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
+        if i==0:
+            randstep = np.random.rand(1,3) - 0.5
+            chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
+        elif i>=1:
+            while (True):
+                randstep = np.random.rand(1,3) - 0.5
+                chainstart = junction_coords + l * randstep/np.linalg.norm(randstep)
+                all_distances = []
+                for j in range(i):
+                    twostepdist = np.linalg.norm(chainstart - chain_starts[-j])
+                    all_distances.append(twostepdist)
+                if all(element > twostepcutoff for element in all_distances):
+                    break
+        chain_starts.append(chainstart)
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
             coords.append(row.tolist())
@@ -90,8 +103,13 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
     # block is the numpy array of coordinates of the each chain in chains        
     coords = []
     vertices = []
+    backbone = []
     vertex_temp = [0,0,0]
     vertices.append(vertex_temp)
+    backbone.append(vertex_temp)
+    backbone_length = len(backbone)
+    backbone_block_length = int((backbone_length - n_graft_blocks)/n_backbone_blocks)
+    
     # loop over each backbone block
     for i in range(n_backbone_blocks):
         # take a random step from a vertex (for first block, it is the origin)
@@ -102,7 +120,8 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
             while True:
                 randstep = np.random.rand(1,3) - 0.5
                 chainstart = vertices[-1] + l * randstep/np.linalg.norm(randstep)
-                twostepdist = np.linalg.norm(chainstart - shiftedblockcoords[-1,:])
+                #twostepdist = np.linalg.norm(chainstart - shiftedblockcoords[-1,:])
+                twostepdist = np.linalg.norm(chainstart - np.array(backbone[(backbone_block_length+1)*(i+1)-2]))                
                 if twostepdist > twostepcutoff:
                     break
         block = chains[i]
@@ -111,31 +130,34 @@ def connect_chains_graft(chains, n_graft_blocks, n_backbone_blocks, l):
         shiftedblockcoords = block - block_start + chainstart
         for row in shiftedblockcoords:
             coords.append(row.tolist())
+            backbone.append(row.tolist())
         # take a random step starting from last monomer of previous block (this is the creation of a vertex)
         while True:
             randstep = np.random.rand(1,3) - 0.5
             chainstart = coords[-1] + l * randstep/np.linalg.norm(randstep)
-            twostepdist = np.linalg.norm(chainstart - block[-2,:]) # check the distance from second last monomer of backbone block from this created vertex
+            twostepdist = np.linalg.norm(chainstart - np.array(backbone[(backbone_block_length+1)*(i+1)-1]) ) # check the distance from second last monomer of backbone block from this created vertex
             if twostepdist > twostepcutoff:
                 break
         # use this vertex as the starting point for next block's random walk
+        backbone.append(chainstart.tolist())
         vertex_temp = chainstart
         vertices.append(vertex_temp.tolist())
     # remove the first and last element of vertices array (first = origin, last = hypothetical vertex created at the end of backbone)
     junction_coords = vertices[1:-1]
+    backbone = backbone[1:-1]
+    
+    twostepcutoff = 1.02/0.97 * l
     # loop over each graft block
     for i in range(n_backbone_blocks, n_backbone_blocks + n_graft_blocks):
         block = chains[i] # this is a graft block
         block_start = block[0,:]
-        # following two blocks are the backbone blocks connected to the graft block, we need these to check distances during random walk of graft block
-        backbone_block_prev = chains[i - n_backbone_blocks]
-        backbone_block_next = chains[i - n_backbone_blocks + 1]
         # take a random step from a junction node
         while True:
             randstep = np.random.rand(1,3) - 0.5
             chainstart = junction_coords[i-n_backbone_blocks] + l * randstep/np.linalg.norm(randstep)
-            twostepdist_prev = np.linalg.norm(chainstart - backbone_block_prev[-1,:])
-            twostepdist_next = np.linalg.norm(chainstart - backbone_block_next[0,:])
+            # next, we check the distance of graft's first monomer from  the 2 monomers of backbone attached to the graft's vertex
+            twostepdist_prev = np.linalg.norm(chainstart - np.array(backbone[(backbone_block_length+1)*(i-n_backbone_blocks+1)-2]) )
+            twostepdist_next = np.linalg.norm(chainstart - np.array(backbone[(backbone_block_length+1)*(i-n_backbone_blocks+1)])  )
             if twostepdist_prev > twostepcutoff and twostepdist_next > twostepcutoff:
                 break
         # shift the coordinates of the block
@@ -208,7 +230,8 @@ def placeComponent(coordlist, region, regioncenter=[0,0,0], COM=True):
     # any geometric region with some common descriptor/interface (i.e.: a sphere or cylinder!)
     # if COM is true, place center of mass of chain at random point. Otherwise, place first point
     comlist = [np.average(coord,axis=0) for coord in coordlist]
-    randcomlist = np.multiply(region, np.random.rand(len(comlist),3)-0.5) + np.array(regioncenter)
+    #randcomlist = np.multiply(region, np.random.rand(len(comlist),3)-0.5) + np.array(regioncenter)
+    randcomlist = np.zeros((1,3))
     newcoordlist = []
     for i,coord in enumerate(coordlist):
         newcoord = (coord - comlist[i] + randcomlist[i,:]).reshape([-1,3]) # make sure correct dimensions even for single-atom molecules
@@ -297,21 +320,6 @@ def build_snapshot(system, type='random', regions=[], regioncenters=[],verbose=F
     frame.configuration.box = box
     frame.particles.N = N
     frame.particles.position = pos
-    '''
-    print('vertex to arms bond lengths')
-    print(np.linalg.norm(np.array(pos[0])-np.array(pos[9])))   
-    print(np.linalg.norm(np.array(pos[3])-np.array(pos[9])))
-    print(np.linalg.norm(np.array(pos[6])-np.array(pos[9])))  
-    print('first arm bond lengths')
-    print(np.linalg.norm(np.array(pos[0])-np.array(pos[1])))   
-    print(np.linalg.norm(np.array(pos[1])-np.array(pos[2])))
-    print('second arm bond lengths')
-    print(np.linalg.norm(np.array(pos[3])-np.array(pos[4])))   
-    print(np.linalg.norm(np.array(pos[4])-np.array(pos[5])))
-    print('third arm bond lengths')
-    print(np.linalg.norm(np.array(pos[6])-np.array(pos[7])))   
-    print(np.linalg.norm(np.array(pos[7])-np.array(pos[8])))
-    '''
     frame.particles.types = types
     frame.particles.typeid = typeid 
     frame.bonds.N = nBonds

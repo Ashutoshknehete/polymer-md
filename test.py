@@ -23,9 +23,9 @@ def write_gsd_from_snapshot(snapshot, fname):
 
 # System parameters
 l = 1
-L_x = 30
-L_y = 30
-L_z = 30
+L_x = 50
+L_y = 50
+L_z = 50
 
 # make system
 system = systemspec.System()
@@ -49,24 +49,24 @@ poly = systemspec.BranchedPolymerSpec.customgraft(monomers,lengths,V)
 system.addComponent(poly, 1)
 '''
 
-#'''
+'''
 chain_monomer = A
-chain_length = 5
+chain_length = 15
 arm_monomer = B
-total_arm_length = chain_length+1
-n_arms = 3
+total_arm_length = 32
+n_arms = 4
 vertex = A
 poly = systemspec.BranchedPolymerSpec.mikto_arm(chain_monomer, chain_length, arm_monomer, total_arm_length, n_arms, vertex)
 system.addComponent(poly, 1)
-#'''
+'''
 
 '''
 backbone = A
-backbone_length = 11
+backbone_length = 16
 sidechain = B
-n_sidechain = 2
+n_sidechain = 4
 vertex = backbone
-total_sidechain_length = backbone_length
+total_sidechain_length = 32
 poly = systemspec.BranchedPolymerSpec.regulargraft(backbone, backbone_length, sidechain, total_sidechain_length, n_sidechain, vertex)
 system.addComponent(poly, 1)
 '''

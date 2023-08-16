@@ -231,8 +231,6 @@ class BranchedPolymerSpec(Species):
         for i in range(n_sidechain):
             vertexID0.append(i+1)
             vertexID1.append(n_backbone_blocks+i+1)
-        print(vertexID0)
-        print(vertexID1)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
         return poly
     
