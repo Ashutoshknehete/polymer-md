@@ -144,7 +144,7 @@ def relax_overlaps_AB(initial_state, device, epsAB, iterations, fname=None):
     methods = [nveCapped]
 
     # update period
-    period = 1000
+    period = 10
     
     sim = setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, feneParam, methods, fstruct=fname)
     sim.run(iterations)

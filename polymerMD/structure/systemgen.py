@@ -169,6 +169,7 @@ def walk_starPolymer(polymer: systemspec.BranchedPolymerSpec):
     # I need to find a way to account for different bond lengths l cleanly
     l = polymer.blocks[0].monomer.l
     coords = connect_chains_star(blockcoords, l)
+    
     return coords
 
 def walk_graftPolymer(polymer: systemspec.BranchedPolymerSpec):

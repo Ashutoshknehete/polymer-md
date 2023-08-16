@@ -29,7 +29,6 @@ def build_system_spec(M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms):
     system = systemspec.System()
     A = system.addMonomer('A',l)
     B = system.addMonomer('B',l)
-    V = system.addMonomer('V',l)
     poly_A = systemspec.LinearPolymerSpec.linear([A], [N_A])
     poly_B = systemspec.LinearPolymerSpec.linear([B], [N_B])
     system.addComponent(poly_A, M_A)
@@ -104,7 +103,7 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, flog, iterations=10000, period=100):
+def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=1000, period=10):
     #gpu = hoomd.device.GPU()
     cpu = hoomd.device.CPU()
     state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, flog=flog)
@@ -139,7 +138,7 @@ if os.path.exists("equil.gsd"):
         os.remove("equil.gsd")
 
 snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
-state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1, ftraj='equil_traj.gsd')
+state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1)
 hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
 if os.path.exists("prod.gsd"):

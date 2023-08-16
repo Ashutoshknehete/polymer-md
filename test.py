@@ -35,26 +35,32 @@ B = system.addMonomer('B',l)
 C = system.addMonomer('C',l)
 V = system.addMonomer('V',l)
 
+'''
 monomers = [A,B,C]
-lengths = [3,3,3]
+lengths = [2,3,4]
 poly = systemspec.BranchedPolymerSpec.star(monomers,lengths,V)
 system.addComponent(poly, 1)
+'''
 
 '''
 monomers = [A,A,A,B,B]
 lengths = [3,3,3,2,2]
 poly = systemspec.BranchedPolymerSpec.customgraft(monomers,lengths,V)
 system.addComponent(poly, 1)
+'''
 
+#'''
 chain_monomer = A
-chain_length = 8
+chain_length = 5
 arm_monomer = B
-total_arm_length = chain_length
-n_arms = 2
-vertex = V
+total_arm_length = chain_length+1
+n_arms = 3
+vertex = A
 poly = systemspec.BranchedPolymerSpec.mikto_arm(chain_monomer, chain_length, arm_monomer, total_arm_length, n_arms, vertex)
 system.addComponent(poly, 1)
+#'''
 
+'''
 backbone = A
 backbone_length = 11
 sidechain = B
@@ -63,7 +69,9 @@ vertex = backbone
 total_sidechain_length = backbone_length
 poly = systemspec.BranchedPolymerSpec.regulargraft(backbone, backbone_length, sidechain, total_sidechain_length, n_sidechain, vertex)
 system.addComponent(poly, 1)
+'''
 
+'''
 print(poly.lengths)
 print(poly.bondtypes)
 print(poly.label)
@@ -79,8 +87,8 @@ print(poly.bonds)
 '''
 
 snap = systemgen.build_snapshot(system,'random')
-if os.path.exists("struct/branched.gsd"):
-        os.remove("struct/branched.gsd")
+if os.path.exists("test.gsd"):
+        os.remove("test.gsd")
 
-with gsd.hoomd.open(name="struct/branched.gsd", mode='xb') as f:
+with gsd.hoomd.open(name="test.gsd", mode='xb') as f:
     f.append(snap)

@@ -103,7 +103,7 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=10000, period=10):
+def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=1000, period=10):
     #gpu = hoomd.device.GPU()
     cpu = hoomd.device.CPU()
     state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)

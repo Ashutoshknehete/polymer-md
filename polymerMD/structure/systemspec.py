@@ -168,15 +168,14 @@ class BranchedPolymerSpec(Species):
             self._blocks[i].monomer = monomers[i]
             self._blocks[i].length = lengths[i]
         return
-    
-
+        
     @classmethod
     def star(cls, monomers, lengths, vertex):
         shape = 'star'
-        vertexID0 = list(range(len(monomers)))
-        vertexID1 = [len(monomers)]*len(monomers)
+        vertexID1 = list(range(len(monomers)))
+        vertexID0 = [len(monomers)]*len(monomers)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
-        return poly
+        return poly        
 
     @classmethod
     def mikto_arm(cls, chain_monomer, chain_length, arm_monomer, total_arm_length, n_arms, vertex):
@@ -191,8 +190,8 @@ class BranchedPolymerSpec(Species):
         for i in range(n_arms):
             monomers.append(arm_monomer)
             lengths.append(arm_length)
-        vertexID0 = list(range(len(monomers)))
-        vertexID1 = [len(monomers)]*len(monomers)
+        vertexID1 = list(range(len(monomers)))
+        vertexID0 = [len(monomers)]*len(monomers)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
         return poly
 
@@ -232,6 +231,8 @@ class BranchedPolymerSpec(Species):
         for i in range(n_sidechain):
             vertexID0.append(i+1)
             vertexID1.append(n_backbone_blocks+i+1)
+        print(vertexID0)
+        print(vertexID1)
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
         return poly
     
