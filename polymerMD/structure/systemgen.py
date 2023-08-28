@@ -230,8 +230,8 @@ def placeComponent(coordlist, region, regioncenter=[0,0,0], COM=True):
     # any geometric region with some common descriptor/interface (i.e.: a sphere or cylinder!)
     # if COM is true, place center of mass of chain at random point. Otherwise, place first point
     comlist = [np.average(coord,axis=0) for coord in coordlist]
-    #randcomlist = np.multiply(region, np.random.rand(len(comlist),3)-0.5) + np.array(regioncenter)
-    randcomlist = np.zeros((1,3))
+    randcomlist = np.multiply(region, np.random.rand(len(comlist),3)-0.5) + np.array(regioncenter)
+    #randcomlist = np.zeros((1,3))
     newcoordlist = []
     for i,coord in enumerate(coordlist):
         newcoord = (coord - comlist[i] + randcomlist[i,:]).reshape([-1,3]) # make sure correct dimensions even for single-atom molecules

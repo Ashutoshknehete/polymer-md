@@ -139,7 +139,7 @@ def relax_overlaps_AB(initial_state, device, epsAB, iterations, fname=None):
         feneParam[bondtype] = bondParam
 
     # newtonian NVE dynamics with limit on displacement
-    displ = hoomd.variant.Ramp(0.000001,0.000001,0,iterations)
+    displ = hoomd.variant.Ramp(0.0000001,0.000001,0,iterations)
     nveCapped = hoomd.md.methods.DisplacementCapped(filter=hoomd.filter.All(), maximum_displacement=displ)
     methods = [nveCapped]
 

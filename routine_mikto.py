@@ -50,7 +50,6 @@ def build_phaseseparated_blend(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms, aspe
 
     # system size and dimensions
     L_x, L_y, L_z = compute_box_dimensions(rho, M_A, N_A, M_B, N_B, M_CP, N_CP, aspect)
-
     # phase separated regions
     relative_domain_x = (N_A*M_A)**(1/3)/(N_B*M_B)**(1/3)
     x_A = relative_domain_x/(1+relative_domain_x)*L_x
@@ -84,10 +83,10 @@ def _relax(snap_initial):
     #gpu = hoomd.device.GPU()
     # system parameters, set arbitrarily for relaxation
     kT = 1.0
-    epsilonAB = 5.0
+    epsilonAB = 10
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
     #state_relax = sim_routines.relax_overlaps_AB(state_overlap.get_snapshot(), cpu, epsilonAB, iterations=10)
-    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=10000)
+    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=20000)
 
     return state_relax
 
@@ -111,12 +110,12 @@ def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=1000, perio
 
 # System parameters
 N_A = 64
-M_A = 1024
+M_A = 128
 N_B = 64
-M_B = 1024
+M_B = 128
 N_CP = [16,16]
 M_CP = 96
-n_arms = 4
+n_arms = 2
 rho = 0.85
 aspect = 0.544
 
@@ -138,12 +137,12 @@ if os.path.exists("equil.gsd"):
         os.remove("equil.gsd")
 
 snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
-state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1)
+state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=10)
 hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
 if os.path.exists("prod.gsd"):
         os.remove("prod.gsd")
 
 snap_equil = gsd.hoomd.open("equil.gsd", mode='rb')[0]
-state_prod = _production(snap_equil, kT=1, epsilonAB=1, ftraj='prod_traj.gsd', flog="prod.log.gsd")
+state_prod = _production(snap_equil, kT=1, epsilonAB=10, ftraj='prod_traj.gsd', flog="prod.log.gsd")
 hoomd.write.GSD.write(state=state_prod, filename="prod.gsd", mode='xb')

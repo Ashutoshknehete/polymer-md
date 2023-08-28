@@ -87,7 +87,7 @@ def _relax(snap_initial):
     #gpu = hoomd.device.GPU()
     # system parameters, set arbitrarily for relaxation
     kT = 1.0
-    epsilonAB = 5.0
+    epsilonAB = 10
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
     #state_relax = sim_routines.relax_overlaps_AB(state_overlap.get_snapshot(), cpu, epsilonAB, iterations=10)
     state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=10000)
@@ -140,12 +140,12 @@ if os.path.exists("equil.gsd"):
         os.remove("equil.gsd")
 
 snap_relax = gsd.hoomd.open("relax.gsd", mode='rb')[0]
-state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=1)
+state_equil = _equilibrate(snap_relax, kT=1, epsilonAB=10)
 hoomd.write.GSD.write(state=state_equil, filename="equil.gsd", mode='xb')
 
 if os.path.exists("prod.gsd"):
         os.remove("prod.gsd")
 
 snap_equil = gsd.hoomd.open("equil.gsd", mode='rb')[0]
-state_prod = _production(snap_equil, kT=1, epsilonAB=1, ftraj='prod_traj.gsd', flog="prod.log.gsd")
+state_prod = _production(snap_equil, kT=1, epsilonAB=10, ftraj='prod_traj.gsd', flog="prod.log.gsd")
 hoomd.write.GSD.write(state=state_prod, filename="prod.gsd", mode='xb')
