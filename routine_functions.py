@@ -145,7 +145,7 @@ def _relax(snap_initial):
     kT = 1.0
     epsilonAB = 10
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
-    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=20000)
+    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=30000)
 
     return state_relax
 
