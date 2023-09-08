@@ -36,8 +36,9 @@ sheet1.write(0, 11, 'architecture')
 sheet1.write(0, 12, 'interfactial_tension_avg')
 sheet1.write(0, 13, 'interfactial_tension_var')
 sheet1.write(0, 14, 'interfactial_tension_nsamples')
-        
-with open('parameters_2_1.json', 'r') as file:
+
+with open('parameters_temp.json', 'r') as file:        
+#with open('parameters_2_1.json', 'r') as file:
 #with open('parameters_2_2.json', 'r') as file:
 #with open('parameters_2_3.json', 'r') as file:
 #with open('parameters_4_1.json', 'r') as file:
@@ -98,6 +99,7 @@ for i in range(n_simulations):
         t,gammas = trajtools.interfacial_tension_global(dat,axis,L)
         gammas = np.array(gammas)
         t = np.squeeze(t)
+                
         # compute average interfacial tension and store
         avg_gamma = np.average(gammas)
         sheet1.write(i+1, 12, avg_gamma)
@@ -108,7 +110,27 @@ for i in range(n_simulations):
         samples = statistics.get_independent_samples(gammas,factor=2)
         nsamples = np.shape(samples)[0]
         sheet1.write(i+1, 14, nsamples)
-
+        
+        fig = plt.figure(figsize=(10, 6))
+        np.random.seed(0)
+        mu = avg_gamma  # Mean
+        sigma = np.sqrt(var_gamma)  # Standard deviation
+        #random_numbers = np.random.normal(mu, sigma, 100000)
+        #hist, bins, _ = plt.hist(random_numbers, bins=100, density=True, color='red', alpha=0.5)
+        #bar_width = bins[1] - bins[0]
+        #total_area = np.sum(hist * bar_width)
+        #print("Total area under the Gaussian histogram:", total_area)        
+        scaled_gammas = (gammas - mu) / (2 * sigma**2)
+        hist, bins, _ = plt.hist(gammas, bins=100, density=True, color='blue', alpha=0.5)
+        bar_width = bins[1] - bins[0]
+        total_area = np.sum(hist * bar_width)
+        print("Total area under my histogram:", total_area)    
+        plt.xlabel('Interfacial tension value')
+        plt.ylabel('Probability Density')
+        plt.title('Probability Density Histogram')
+        plt.show()
+        
+        '''
         # density profiles of monomers
         # in the future we should average this over many frames! but I haven't been recording trajectories...
         snap = gsd.hoomd.open(fname_prod, 'rb')[0]
@@ -121,8 +143,8 @@ for i in range(n_simulations):
         keys_list = list(data)
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot()
-        ax.plot(data[keys_list[0]][1][0:100], data[keys_list[0]][0], color=colors["black"], label=f'species = {keys_list[0]}')
-        ax.plot(data[keys_list[1]][1][0:100], data[keys_list[1]][0], color=colors["gray"], label=f'species = {keys_list[1]}')
+        ax.plot(data[keys_list[0]][1][0:100], data[keys_list[0]][0], color=colors["black"], label=f'monomer = {keys_list[0]}')
+        ax.plot(data[keys_list[1]][1][0:100], data[keys_list[1]][0], color=colors["gray"], label=f'monomer = {keys_list[1]}')
         fname_density_1D_monomers_png = architecture+"_density1Dmonomers_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.png".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
         plt.legend()
         plt.xlabel(r'x')
@@ -146,7 +168,7 @@ for i in range(n_simulations):
         plt.legend()
         plt.xlabel(r'x')
         plt.ylabel(r'$\phi(x)$')
-        plt.title("1D volume fraction of monomers")
+        plt.title("1D volume fraction of species")
         plt.savefig(fname_density_1D_species_png)
 
         speciesRsq = trajtools.internaldistances_species(snap,system)
@@ -174,5 +196,6 @@ for i in range(n_simulations):
         plt.legend()
         plt.title("Mean Squared Internal Distances")
         plt.savefig(fname_internal_dist_species_png)
+        '''
         
 wb.close()
