@@ -37,19 +37,7 @@ sheet1.write(0, 12, 'interfactial_tension_avg')
 sheet1.write(0, 13, 'interfactial_tension_var')
 sheet1.write(0, 14, 'interfactial_tension_nsamples')
 
-with open('parameters_temp.json', 'r') as file:        
-#with open('parameters_2_1.json', 'r') as file:
-#with open('parameters_2_2.json', 'r') as file:
-#with open('parameters_2_3.json', 'r') as file:
-#with open('parameters_4_1.json', 'r') as file:
-#with open('parameters_4_2.json', 'r') as file:
-#with open('parameters_4_3.json', 'r') as file:
-#with open('parameters_1_1.json', 'r') as file:
-#with open('parameters_1_2.json', 'r') as file:
-#with open('parameters_1_3.json', 'r') as file:
-#with open('parameters_3_1.json', 'r') as file:
-#with open('parameters_3_2.json', 'r') as file:
-#with open('parameters_3_3.json', 'r') as file:
+with open('parameters.json', 'r') as file:        
     parameters = json.load(file)
     
 n_simulations = len(parameters["N_A"])
@@ -151,6 +139,7 @@ for i in range(n_simulations):
         plt.ylabel(r'$\phi(x)$')
         plt.title("1D volume fraction of monomers")
         plt.savefig(fname_density_1D_monomers_png)
+        plt.close()
 
         profiles = trajtools.density_1D_species(snap,system,nBins=100)
         fname_density_1D_species = architecture+"_density1Dspecies_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.pkl".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
@@ -170,6 +159,7 @@ for i in range(n_simulations):
         plt.ylabel(r'$\phi(x)$')
         plt.title("1D volume fraction of species")
         plt.savefig(fname_density_1D_species_png)
+        plt.close()
 
         speciesRsq = trajtools.internaldistances_species(snap,system)
         fname_internal_dist_species = architecture+"_internal_dist_species_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.pkl".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
@@ -196,6 +186,7 @@ for i in range(n_simulations):
         plt.legend()
         plt.title("Mean Squared Internal Distances")
         plt.savefig(fname_internal_dist_species_png)
+        plt.close()
         '''
         
 wb.close()

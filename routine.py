@@ -22,18 +22,7 @@ from routine_functions import _production
  
 import json
 
-with open('parameters_2_1.json', 'r') as file:
-#with open('parameters_2_2.json', 'r') as file:
-#with open('parameters_2_3.json', 'r') as file:
-#with open('parameters_4_1.json', 'r') as file:
-#with open('parameters_4_2.json', 'r') as file:
-#with open('parameters_4_3.json', 'r') as file:
-#with open('parameters_1_1.json', 'r') as file:
-#with open('parameters_1_2.json', 'r') as file:
-#with open('parameters_1_3.json', 'r') as file:
-#with open('parameters_3_1.json', 'r') as file:
-#with open('parameters_3_2.json', 'r') as file:
-#with open('parameters_3_3.json', 'r') as file:
+with open('parameters.json', 'r') as file:
     data = json.load(file)
     
 n_simulations = len(data["N_A"])

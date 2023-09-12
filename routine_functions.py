@@ -145,14 +145,14 @@ def _relax(snap_initial):
     kT = 1.0
     epsilonAB = 10
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
-    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=30000)
+    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=100000)
 
     return state_relax
 
-def _equilibrate(snap_initial, kT, epsilonAB, ftraj, iterations=10000):
-    #gpu = hoomd.device.GPU()
-    cpu = hoomd.device.CPU()
-    state_equil = sim_routines.equilibrate_AB(snap_initial, cpu, epsilonAB, kT, iterations=iterations,ftraj=ftraj)
+def _equilibrate(snap_initial, kT, epsilonAB, ftraj, iterations=40000000):
+    gpu = hoomd.device.GPU()
+    #cpu = hoomd.device.CPU()
+    state_equil = sim_routines.equilibrate_AB(snap_initial, gpu, epsilonAB, kT, iterations=iterations,ftraj=ftraj)
     return state_equil
 
 def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, iterations=10000000, period=10000):
@@ -161,8 +161,8 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=1000, period=10):
-    #gpu = hoomd.device.GPU()
-    cpu = hoomd.device.CPU()
-    state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)
+def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=10000000, period=10000):
+    gpu = hoomd.device.GPU()
+    #cpu = hoomd.device.CPU()
+    state_prod = sim_routines.production(snap_initial, gpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)
     return state_prod
