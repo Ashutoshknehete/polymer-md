@@ -75,19 +75,19 @@ for i in range(n_simulations):
             system = build_system_spec_graft(M_A, N_A, M_B, N_B, M_CP, N_CP, n_arms)
         
         colors = format_plots(plt)
-            
+        
         fname_prod_log = architecture+"_prod_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.log.gsd".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
         # load log and structure data
         dat = gsd.hoomd.open(fname_prod_log,'rb')
         fname_prod = architecture+"_prod_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.gsd".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
         snap = gsd.hoomd.open(fname_prod, 'rb')[0]
+        
         # compute interfacial tension for each frame, determine average and variance
         axis=0 # fix the axis! We really don't need to generalize it. Change later if needed
         L = snap.configuration.box[axis]
         t,gammas = trajtools.interfacial_tension_global(dat,axis,L)
         gammas = np.array(gammas)
         t = np.squeeze(t)
-                
         # compute average interfacial tension and store
         avg_gamma = np.average(gammas)
         sheet1.write(i+1, 12, avg_gamma)
@@ -98,24 +98,24 @@ for i in range(n_simulations):
         samples = statistics.get_independent_samples(gammas,factor=2)
         nsamples = np.shape(samples)[0]
         sheet1.write(i+1, 14, nsamples)
-        
         fig = plt.figure(figsize=(10, 6))
         np.random.seed(0)
         mu = avg_gamma  # Mean
-        sigma = np.sqrt(var_gamma)  # Standard deviation
-        #random_numbers = np.random.normal(mu, sigma, 100000)
-        #hist, bins, _ = plt.hist(random_numbers, bins=100, density=True, color='red', alpha=0.5)
-        #bar_width = bins[1] - bins[0]
-        #total_area = np.sum(hist * bar_width)
-        #print("Total area under the Gaussian histogram:", total_area)        
-        scaled_gammas = (gammas - mu) / (2 * sigma**2)
-        hist, bins, _ = plt.hist(gammas, bins=100, density=True, color='blue', alpha=0.5)
+        sigma = np.std(samples)  # Standard deviation
+        random_numbers = np.random.normal(0, 1, nsamples)
+        hist, bins, _ = plt.hist(random_numbers, bins=100, density=True, color='red', alpha=0.5, label="random #s (normal gaussian dist)")
         bar_width = bins[1] - bins[0]
         total_area = np.sum(hist * bar_width)
-        print("Total area under my histogram:", total_area)    
-        plt.xlabel('Interfacial tension value')
-        plt.ylabel('Probability Density')
+        
+        scaled_gammas = (samples - mu) / (2 * sigma**2)
+        hist, bins, _ = plt.hist(scaled_gammas, bins=100, density=True, color='blue', alpha=0.5, label="scaled interfacial tension data")
+        bar_width = bins[1] - bins[0]
+        total_area = np.sum(hist * bar_width)
+
+        plt.xlabel('($\gamma$-$\mu$)/$\sigma^2$')
+        plt.ylabel('Normalized Probability Density')
         plt.title('Probability Density Histogram')
+        plt.legend()
         plt.show()
         
         '''
@@ -160,7 +160,6 @@ for i in range(n_simulations):
         plt.title("1D volume fraction of species")
         plt.savefig(fname_density_1D_species_png)
         plt.close()
-
         speciesRsq = trajtools.internaldistances_species(snap,system)
         fname_internal_dist_species = architecture+"_internal_dist_species_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.pkl".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
         with open(fname_internal_dist_species, 'wb') as f:
@@ -175,10 +174,10 @@ for i in range(n_simulations):
         ax.plot(xaxis, yaxis, color=colors["black"], label=f'species = {keys_list[0]}')
         xaxis = data[keys_list[1]][0]
         yaxis = np.array(data[keys_list[1]][1])/np.array(data[keys_list[1]][0])
-        ax.plot(xaxis, yaxis, color=colors["almond"], label=f'species = {keys_list[1]}')
+        ax.plot(xaxis, yaxis, color=colors["gray"], label=f'species = {keys_list[1]}')
         xaxis = data[keys_list[2]][0]
         yaxis = np.array(data[keys_list[2]][1])/np.array(data[keys_list[2]][0])
-        ax.plot(xaxis, yaxis, color=colors["gray"], label=f'species = {keys_list[2]}')
+        ax.plot(xaxis, yaxis, color=colors["almond"], label=f'species = {keys_list[2]}')
         plt.xscale('log')
         fname_internal_dist_species_png = architecture+"_internal_dist_species_NA={:04d}_MA={:04d}_NB={:04d}_MB={:04d}_NCP={:04d}{:04d}_MCP={:04d}_narms={:04d}.png".format(N_A,M_A,N_B,M_B,N_CP[0],N_CP[1],M_CP,n_arms)
         plt.xlabel('n')
