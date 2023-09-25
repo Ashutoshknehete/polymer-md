@@ -1,5 +1,4 @@
 import os
-import os
 import pickle
 import numpy as np
 from scipy.signal import find_peaks
@@ -293,7 +292,8 @@ def generate_initial(job):
         print("Generating initial structure for job {:s}...".format(job.id))
         snapshot = build_phaseseparated_blend(rho=job.sp.density, M_A=job.sp.num_A, N_A=job.sp.length_A,
                                         M_B=job.sp.num_B, N_B=job.sp.length_B, 
-                                        M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, aspect=job.sp.aspect)
+                                        M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, aspect=job.sp.aspect,
+                                        architecture=job.sp.architecture)
         with gsd.hoomd.open(name="struct/random.gsd", mode='xb') as f:
             f.append(snapshot)
     return
@@ -393,7 +393,12 @@ def check_for_micelles(job):
     pos = snap.particles.position
 
     # get system topology details
-    system = job_build_system_spec(job)
+    if job.sp.architecture == 'linear':
+        system = job_build_system_spec_linear(job)
+    if job.sp.architecture == 'graft':
+        system = job_build_system_spec_graft(job)
+    if job.sp.architecture == 'mikto':
+        system = job_build_system_spec_mikto(job)
     junctionbonds = system.junctions()
 
     # get junction positions in x direction and make histogram 
@@ -457,7 +462,12 @@ def density_profiles(job):
             pickle.dump(profiles, f)
         
         # density profile of species, defined as number of beads belonging to that species in a region
-        system = job_build_system_spec(job)
+        if job.sp.architecture == 'linear':
+            system = job_build_system_spec_linear(job)
+        if job.sp.architecture == 'graft':
+            system = job_build_system_spec_graft(job)
+        if job.sp.architecture == 'mikto':
+            system = job_build_system_spec_mikto(job)
         profiles = trajtools.density_1D_species(snap,system,nBins=100)
         with open("density_1D_species.pkl", 'wb') as f:
             pickle.dump(profiles, f)
@@ -477,7 +487,12 @@ def internal_distances(job):
             pickle.dump((n,avgRsq),f)
         
         # internal distance curves split out by species
-        system = job_build_system_spec(job)
+        if job.sp.architecture == 'linear':
+            system = job_build_system_spec_linear(job)
+        if job.sp.architecture == 'graft':
+            system = job_build_system_spec_graft(job)
+        if job.sp.architecture == 'mikto':
+            system = job_build_system_spec_mikto(job)
         speciesRsq = trajtools.internaldistances_species(snap,system)
         with open("internaldistances_species.pkl", 'wb') as f:
             pickle.dump(speciesRsq, f)
@@ -493,8 +508,13 @@ def junction_rdf(job):
     with job:
         print("Computing junction RDF for job {:s}...".format(job.id))
         snap = gsd.hoomd.open("struct/prod.gsd", 'rb')[0] 
-        system = job_build_system_spec(job)
-
+        if job.sp.architecture == 'linear':
+            system = job_build_system_spec_linear(job)
+        if job.sp.architecture == 'graft':
+            system = job_build_system_spec_graft(job)
+        if job.sp.architecture == 'mikto':
+            system = job_build_system_spec_mikto(job)
+        
         r,g = trajtools.junction_RDF(snap, system, axis=0)    
         with open("junction_rdf.pkl", 'wb') as f:
             pickle.dump((r,g),f)
