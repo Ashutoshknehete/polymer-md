@@ -6,11 +6,11 @@ project = signac.init_project()
 num_homo = [1024]
 length_A = 64
 length_B = 64
-num_CP = np.arange(32,75,32, dtype=int)
+num_CP = np.arange(32,33,32, dtype=int)
 base_CP = [16] #16 is A16B16, 32 is A32B32, 64 is A64B64 for branched. In linear, it is = #monomers in each block
-num_arms = [4]
+num_arms = [2]
 #numblocks = [2,3] #for linear
-list_architecture = ["mikto","graft"] # can take inputs "mikto", "graft", or "linear"
+list_architecture = ["mikto"] # can take inputs "mikto", "graft", or "linear"
 
 rho = 0.85
 eps = 50
@@ -56,6 +56,7 @@ for i in range(num_replicas):
                             job.init()
                             print(sp)
 
+'''
 # Add bare jobs
 for i in range(num_replicas):
    for N_homo in num_homo:
@@ -67,3 +68,4 @@ for i in range(num_replicas):
              "aspect": aspect, "architecture": 'linear', "replica": i} # architecture set to linear for consistency, it doesnt matter since NCP = 0
        job = project.open_job(sp)
        job.init()
+'''

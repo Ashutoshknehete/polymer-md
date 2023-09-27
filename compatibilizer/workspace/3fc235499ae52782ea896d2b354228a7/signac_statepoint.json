@@ -1,1 +1,0 @@
-{"density": 0.85, "kT": 1.0, "epsilon_AB": 50, "num_A": 1024, "length_A": 64, "num_B": 1024, "length_B": 64, "num_CP": 32, "length_CP": [16, 16], "num_arms": 4, "aspect": 0.5443310539518174, "architecture": "mikto", "replica": 0}

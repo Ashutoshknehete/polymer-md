@@ -147,14 +147,13 @@ def _relax(snap_initial):
     kT = 1.0
     epsilonAB = 10
     #state_overlap = sim_routines.remove_overlaps(snap_initial, cpu, kT, prefactor_range=[1,120], iterations=10)
-    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=20000)
+    state_relax = sim_routines.relax_overlaps_AB(snap_initial, cpu, epsilonAB, iterations=30000)
 
     return state_relax
 
-def _equilibrate(snap_initial, kT, epsilonAB, ftraj, iterations=10000):
-    #gpu = hoomd.device.GPU()
-    cpu = hoomd.device.CPU()
-    state_equil = sim_routines.equilibrate_AB(snap_initial, cpu, epsilonAB, kT, iterations=iterations,ftraj=ftraj)
+def _equilibrate(snap_initial, kT, epsilonAB, iterations=10000):
+    gpu = hoomd.device.GPU()
+    state_equil = sim_routines.equilibrate_AB(snap_initial, gpu, epsilonAB, kT, iterations=iterations)
     return state_equil
 
 def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, iterations=10000000, period=10000):
@@ -163,24 +162,23 @@ def _production_IK(snap_initial, kT, epsilonAB, flog, nbins, fthermo, fedge, ite
                                                 flog=flog, fthermo=fthermo, fedge=fedge, nbins=nbins)
     return state_prod
 
-def _production(snap_initial, kT, epsilonAB, ftraj, flog, iterations=10000, period=5000):
-    #gpu = hoomd.device.GPU()
-    cpu = hoomd.device.CPU()
-    state_prod = sim_routines.production(snap_initial, cpu, epsilonAB, kT, iterations, period, ftraj=ftraj, flog=flog)
+def _production(snap_initial, kT, epsilonAB, flog, iterations=10000, period=1):
+    gpu = hoomd.device.GPU()
+    state_prod = sim_routines.production(snap_initial, gpu, epsilonAB, kT, iterations, period, flog=flog)
     return state_prod
 
 ### helper FlowProject functions to simplify syntax
 def job_build_system_spec_graft(job):
     return build_system_spec_graft(M_A=job.sp.num_A, N_A=job.sp.length_A, M_B=job.sp.num_B, 
-                             N_B=job.sp.length_B, M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, n_arms=job.sp.n_arms)
+                             N_B=job.sp.length_B, M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, n_arms=job.sp.num_arms)
 
 def job_build_system_spec_mikto(job):
     return build_system_spec_mikto(M_A=job.sp.num_A, N_A=job.sp.length_A, M_B=job.sp.num_B, 
-                             N_B=job.sp.length_B, M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, n_arms=job.sp.n_arms)
+                             N_B=job.sp.length_B, M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, n_arms=job.sp.num_arms)
     
 def job_build_system_spec_linear(job):
     return build_system_spec_linear(M_A=job.sp.num_A, N_A=job.sp.length_A, M_B=job.sp.num_B, 
-                             N_B=job.sp.length_B, M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, n_arms=job.sp.n_arms)
+                             N_B=job.sp.length_B, M_CP=job.sp.num_CP, N_CP=job.sp.length_CP, n_arms=job.sp.num_arms)
 
 def job_compute_box_dimensions(job):
     return compute_box_dimensions(rho=job.sp.density, M_A=job.sp.num_A, N_A=job.sp.length_A, 
@@ -318,7 +316,7 @@ def equilibrate(job):
     with job:
         print("Equilibrating relaxed structure for job {:s}...".format(job.id))
         snap_relax = gsd.hoomd.open("struct/relax.gsd", mode='rb')[0]
-        state_equil = _equilibrate(snap_relax, kT=job.sp.kT, epsilonAB=job.sp.epsilon_AB,iterations=40000000)
+        state_equil = _equilibrate(snap_relax, kT=job.sp.kT, epsilonAB=job.sp.epsilon_AB,iterations=10000)
         hoomd.write.GSD.write(state=state_equil, filename="struct/equil.gsd", mode='xb')
     return
 
@@ -361,11 +359,11 @@ def interfacial_tension(job):
         # compute interfacial tension for each frame, determine average and variance
         t,gammas = trajtools.interfacial_tension_IK(dat, edges, axis)
         t = np.squeeze(t)
-        var_gamma = statistics.estimator_variance(np.array(gammas))
+        #var_gamma = statistics.estimator_variance(np.array(gammas))
         avg_gamma = np.average(gammas)
         # store results in job doc
         job.doc.interfacial_tension_average = avg_gamma
-        job.doc.interfacial_tension_variance = var_gamma
+        #job.doc.interfacial_tension_variance = var_gamma
     return
 
 @BlendMD.post(descriptors_computed)
