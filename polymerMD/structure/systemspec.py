@@ -693,6 +693,24 @@ class System:
 
         return indices
 
+    def indicesByBlockByMolecule(self):
+        # assumes block copolymer!!!
+        indices = []
+        idx_current = 0
+        for component in self.components:
+            if not component.species.isPolymer: # assuming only polymers have blocks! 
+                idx_start += component.numparticles
+                continue
+            for i in range(component.N):
+                molindices = []
+                for block in component.species.blocks:
+                    blockindices = list(range(idx_current,idx_current+block.length))
+                    molindices.append(blockindices)
+                    idx_current += block.length               
+                indices.append(molindices)
+
+        return indices
+
     def bonds(self):
 
         bonds = []
@@ -709,6 +727,33 @@ class System:
         
         return bonds, bondtypes
     
+    def bondGraph(self):
+
+        bondgraph = np.zeros([self.numparticles,self.numparticles])
+        
+        bonds, _ = self.bonds()
+        for bond in bonds:
+            bondgraph[bond[0],bond[1]] = 1
+            bondgraph[bond[1],bond[0]] = 1
+        
+        return bondgraph
+    
+    def bondsByMolecule(self):
+
+        bonds = []
+        bondtypes = []
+        idx_start = 0
+        for component in self.components:
+            if not component.species.isPolymer: # assuming only polymers have bonds! 
+                idx_start += component.numparticles
+                continue
+            for i in range(component.N):
+                bonds.append(( np.array(component.species.bonds) + idx_start ).tolist())
+                bondtypes.append(component.species.bondtypes)
+                idx_start += component.species.length
+        
+        return bonds, bondtypes
+    
     def junctions(self):
         junctions = []
         # junctiontypes = [] could add if needed in future for 3 monomer systems
@@ -719,7 +764,18 @@ class System:
                 junctions.append(bond)
         return junctions
 
-
+    def junctionsByMolecule(self):
+        junctions = []
+        idx_start = 0
+        bonds,bondtypes = self.bondsByMolecule()
+        for molbonds, molbondtypes in zip(bonds,bondtypes):
+            moljunctions = []
+            for bond, bondtype in zip(molbonds,molbondtypes):
+                monomertypes = bondtype.split("-")
+                if monomertypes[0] != monomertypes[1]:
+                    moljunctions.append(bond)
+            junctions.append(moljunctions)        
+        return junctions
     
 # Workflow:
 # Make a system

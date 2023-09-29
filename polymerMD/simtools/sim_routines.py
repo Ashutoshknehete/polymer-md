@@ -22,10 +22,12 @@ def add_write_state(sim: hoomd.Simulation, iter: int, fname: str):
     sim.operations.writers.append(write_gsd)
     return
 
-def add_write_trajectory(sim: hoomd.Simulation, period: int, ftraj: str):
+def add_write_trajectory(sim: hoomd.Simulation, period: int, ftraj: str, filter=hoomd.filter.All(), dynamic=None):
 
     write_traj_gsd = hoomd.write.GSD(filename=ftraj,
                             trigger=hoomd.trigger.Periodic(period=period),
+                            filter=filter,
+                            dynamic=dynamic,
                             mode='wb')
     sim.operations.writers.append(write_traj_gsd)
 
@@ -82,7 +84,7 @@ def add_filtered_thermo(sim: hoomd.Simulation, period: int, axis: int, nbins: in
 
     # create spatial thermo gsd log file
     log_writer = hoomd.write.GSD(filename=flog, trigger=trigger, mode='wb', filter=hoomd.filter.Null())
-    log_writer.log = logger
+    log_writer.logger = logger
     sim.operations.writers.append(log_writer)
 
     # write edges to a file!
@@ -102,7 +104,7 @@ def remove_overlaps(initial_state, device, kT, prefactor_range, iterations, fnam
 
     return snap
 
-def relax_overlaps(initial_state, device, iterations, fname=None):
+def relax_overlaps(initial_state, device, iterations, displacement = None, fname=None):
 
     # overlap will still be significant given the 1/r dependence of the LJ potential
 
@@ -112,19 +114,21 @@ def relax_overlaps(initial_state, device, iterations, fname=None):
     feneParam = {'A-A': dict(k=30.0, r0=1.5, epsilon=1.0, sigma=1.0, delta=0.0)}
 
     # newtonian NVE dynamics with limit on displacement
-    displ = hoomd.variant.Ramp(0.001,0.005,0,iterations)
-    nveCapped = hoomd.md.methods.DisplacementCapped(filter=hoomd.filter.All(), maximum_displacement=displ)
+    if displacement == None:
+        displacement = [0.001, 0.005]
+    displacementramp = hoomd.variant.Ramp(displacement[0],displacement[1],0,iterations)
+    nveCapped = hoomd.md.methods.DisplacementCapped(filter=hoomd.filter.All(), maximum_displacement=displacementramp)
     methods = [nveCapped]
 
     # update period
-    period = 5000
+    period = 2500
     
     sim = setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, feneParam, methods, fstruct=fname)
     sim.run(iterations)
     
     return sim.state
 
-def relax_overlaps_AB(initial_state, device, epsAB, iterations, fname=None):
+def relax_overlaps_AB(initial_state, device, epsAB, iterations, displacement=None, fname=None):
 
     # overlap will still be significant given the 1/r dependence of the LJ potential
 
@@ -139,8 +143,10 @@ def relax_overlaps_AB(initial_state, device, epsAB, iterations, fname=None):
         feneParam[bondtype] = bondParam
 
     # newtonian NVE dynamics with limit on displacement
-    displ = hoomd.variant.Ramp(0.0000001,0.0000005,0,iterations)
-    nveCapped = hoomd.md.methods.DisplacementCapped(filter=hoomd.filter.All(), maximum_displacement=displ)
+    if displacement == None:
+        displacement = [0.001, 0.005]
+    displacementramp = hoomd.variant.Ramp(displacement[0],displacement[1],0,iterations)
+    nveCapped = hoomd.md.methods.DisplacementCapped(filter=hoomd.filter.All(), maximum_displacement=displacementramp)
     methods = [nveCapped]
 
     # update period
@@ -230,6 +236,32 @@ def equilibrate_npt(initial_state, device, kT, P, iterations, period=5000, fstru
     sim.run(iterations)
     return sim.state
 
+def simulate_npat(initial_state, device, epsAB, Px, kT, iterations, period=5000, fstruct=None, ftraj=None, flog=None):
+
+    # force field parameters
+    ljParam = {('A','A'): dict(epsilon=1.0, sigma=1.0),
+               ('B','B'): dict(epsilon=1.0, sigma=1.0),
+               ('A','B'): dict(epsilon=epsAB, sigma=1.0)}
+    lj_rcut = 2**(1/6)
+    bondParam = dict(k=30.0, r0=1.5, epsilon=1.0, sigma=1.0, delta=0.0)
+    feneParam = {}
+    for bondtype in initial_state.bonds.types:
+        feneParam[bondtype] = bondParam
+
+    # npxt thermostat and barostat method
+    dt = 0.005 # not setting it here, just copying from the setup_ljfene function! 
+    tau = 100*dt
+    tauS = 1000*dt
+    thermostat = hoomd.md.methods.thermostats.MTTK(kT=kT,tau=tau)
+    npxt = hoomd.md.methods.ConstantPressure(filter=hoomd.filter.All(), thermostat=thermostat, tauS=tauS, S=Px, box_dof=[True,False,False,False,False,False], couple='none')
+    methods = [npxt]
+    
+    sim = setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, feneParam, methods, 
+                            fstruct=fstruct, ftraj=ftraj, flog=flog)
+    
+    sim.run(iterations)
+    return sim.state
+
 def production(initial_state, device, epsAB, kT, iterations, period=None, fstruct=None, ftraj=None, flog=None):
 
     # force field parameters
@@ -256,41 +288,6 @@ def production(initial_state, device, epsAB, kT, iterations, period=None, fstruc
     # add momentum zeroer! approximately freeze system in place, no bulk motion allowed
     zeromomentum = hoomd.md.update.ZeroMomentum(hoomd.trigger.Periodic(50))
     sim.operations.updaters.append(zeromomentum)
-    
-    sim.run(iterations)
-
-    return sim.state
-
-def production_IK(initial_state, device, epsAB, kT, iterations, period=None, 
-                  fstruct=None, ftraj=None, flog=None, fthermo=None, fedge=None, nbins=40, axis=0):
-
-    # force field parameters
-    ljParam = {('A','A'): dict(epsilon=1.0, sigma=1.0),
-               ('B','B'): dict(epsilon=1.0, sigma=1.0),
-               ('A','B'): dict(epsilon=epsAB, sigma=1.0)}
-    lj_rcut = 2**(1/6)
-    bondParam = dict(k=30.0, r0=1.5, epsilon=1.0, sigma=1.0, delta=0.0)
-    feneParam = {}
-    for bondtype in initial_state.bonds.types:
-        feneParam[bondtype] = bondParam
-
-    # langevin thermostat and integrator
-    langevin = hoomd.md.methods.Langevin(filter=hoomd.filter.All(), kT = kT)
-    methods = [langevin]
-
-    # thermo period
-    if period==None:
-        period = 5000
-    
-    sim = setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, feneParam, methods, 
-                            fstruct=fstruct, ftraj=ftraj, flog=flog)
-    
-    # add momentum zeroer! approximately freeze system in place, no bulk motion allowed.
-    zeromomentum = hoomd.md.update.ZeroMomentum(hoomd.trigger.Periodic(50))
-    sim.operations.updaters.append(zeromomentum)
-
-    # add thermo IK compute
-    ik.add_thermo_ik(sim, period, axis, nbins, fthermo, fedge)
     
     sim.run(iterations)
 
@@ -377,7 +374,7 @@ def run_GAUSSIAN_FENE(initial_state, device, kT, prefactor_range, feneParam, ite
     # gaussian pair potential, similar to KG soft potential when pre-factor multiplied by 2
     # and length scale multiplied by 2/5
     nlist = hoomd.md.nlist.Cell(buffer=0.5) # buffer impacts performance, not correctness, with default other settings!
-    gaussian = hoomd.md.pair.Gauss(nlist, default_r_cut=2.5)
+    gaussian = hoomd.md.pair.Gaussian(nlist, default_r_cut=2.5)
 
     # custom ramping of energetic prefactor because parameters don't accept hoomd.variant type
     rampsteps = 100
@@ -453,17 +450,22 @@ def setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, f
     sim = hoomd.Simulation(device=device, seed=1)
     sim.create_state_from_snapshot(initial_state)
 
-    # FENE bonded interactions
-    fenewca = hoomd.md.bond.FENEWCA()
-    fenewca.params = feneParam
+
 
     # LJ non-bonded interactions
     nlist = hoomd.md.nlist.Cell(buffer=0.5) # buffer impacts performance, not correctness, with default other settings!
     lj = hoomd.md.pair.LJ(nlist, default_r_cut=lj_rcut)
     lj.params = ljParam
+    forces = [lj]
+
+    # FENE bonded interactions
+    if feneParam != None: 
+        fenewca = hoomd.md.bond.FENEWCA()
+        fenewca.params = feneParam
+        forces.append(fenewca)
     
     # integrator
-    integrator = hoomd.md.Integrator(dt=0.005, methods=methods, forces=[fenewca, lj])
+    integrator = hoomd.md.Integrator(dt=0.005, methods=methods, forces=forces)
     sim.operations.integrator = integrator
 
     # loggable computes
@@ -486,7 +488,7 @@ def setup_LJ_FENE(initial_state, device, iterations, period, ljParam, lj_rcut, f
         trajlog.add(sim, ['timestep'])
         trigger = hoomd.trigger.Periodic(period)
         log_writer = hoomd.write.GSD(filename=flog, trigger=trigger, mode='wb', filter=hoomd.filter.Null())
-        log_writer.logger = trajlog # .log replaced by .logger for version compatibility on MSI
+        log_writer.logger = trajlog
         sim.operations.writers.append(log_writer)
 
     # add table logging

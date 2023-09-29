@@ -143,6 +143,80 @@ def internaldistances_species(f, system: systemspec.System):
 
     return speciesRsq
 
+def lineardistancesfromjunctions(f, system: systemspec.System):
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: lineardistancesfromjunctions(t, system)
+        return ts, list(map(func, f))
+    
+    # get box information
+    box = freud.box.Box.from_box(f.configuration.box)
+
+    # get block particle indices and junctions for each copolymer
+    particleindices = [mol for mol in system.indicesByBlockByMolecule() if len(mol) > 1]
+    junctionindices = [mol for mol in system.junctionsByMolecule() if len(mol) > 0]
+    # structure is [ [[],[]], [[],[]], ... ] where outer is whole system, 2nd level is molecules, 3rd level is blocks
+    # so.... particle[0][1][2] gets the index of the third particle in the second block in the first molecule
+    # and... junction[0][1] gets the list [a,b] for the second junction of the first molecule, 
+    # where a is the first atom in the bond and b is the second
+    
+    # compute junction coordinates and store in same organization
+    junctioncoordinates = []
+    for moljunctionindices in junctionindices:
+        moljunctioncoordinates = []
+        for junction in moljunctionindices:
+            coord0 = f.particles.position[[junction[0]],:]
+            coord1 = f.particles.position[[junction[1]],:]
+            jxncoord = utility.get_midpoint(coord0,coord1,box.L).reshape(-1)
+            moljunctioncoordinates.append(jxncoord)
+        junctioncoordinates.append(np.array(moljunctioncoordinates))
+
+    # split into endbloocks and midblocks
+    endblocks = []
+    endblockjunctions = []
+    midblocks = []
+    midblockjunctions = []
+    for molparticleindices, moljunctioncoordinates in zip(particleindices,junctioncoordinates):
+        # order indices by nearest junction to furthest from junction
+        endblocks.append(molparticleindices[0][::-1]) # [::-1] reverses the order of the list by taking every "-1th" element of list
+        endblocks.append(molparticleindices[-1]) 
+        endblockjunctions.append(moljunctioncoordinates[0,:])
+        endblockjunctions.append(moljunctioncoordinates[-1,:])
+
+        # check if this is longer than a diblock (ie if there are midblocks)
+        if len(molparticleindices) > 2: # if more than 2 blocks
+            # for midblocks, split down the middle associate with correct junction
+            for i, midblock in enumerate(molparticleindices[1:-1]):
+                blocklength = len(midblock)
+                # first half of block
+                midblocks.append(midblock[0:int(blocklength/2)])
+                midblockjunctions.append(moljunctioncoordinates[i,:])
+                # other half of block
+                midblocks.append(midblock[int(blocklength/2):][::-1])
+                midblockjunctions.append(moljunctioncoordinates[i+1,:])
+
+    endblockjunctions = np.array(endblockjunctions)
+    midblockjunctions = np.array(midblockjunctions)
+
+    #print("endblock indices")
+    #print(endblocks[9])
+    #print("diff between coordinate 0 and junction coordinate ")
+    #for i,block in enumerate(endblocks):
+    #    print(f.particles.position[block[0],:]-endblockjunctions[i,:])
+
+
+    # get Rsq vs n for endblocks and midblocks where n is distance from junction
+    blockdata = {}
+    endblockAvgRsq, endblockN = structure.meanSqDistanceFromJunction(f.particles.position, endblocks, endblockjunctions, box)
+    blockdata['endblocks'] = (endblockN, endblockAvgRsq)
+    
+    if len(midblocks) > 0:
+        midblockAvgRsq, midblockN = structure.meanSqDistanceFromJunction(f.particles.position, midblocks, midblockjunctions, box)
+        blockdata['midblocks'] = (midblockN, midblockAvgRsq)
+    
+    return blockdata
+
 def volfrac_fields(f, nBins=None, density_type='binned'):
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
@@ -220,7 +294,11 @@ def overlap_integral(f, nBins=None):
 def junction_RDF(f, system:systemspec.System, axis, nBins=40, rmax = 5):
     # get junction centers
     junctions = system.junctions()
-    pos = np.array([1/2*np.sum(f.particles.position[junc,:],axis=0) for junc in junctions])  
+    pos = np.array([utility.get_midpoint(
+        f.particles.position[[junc[0]],:],
+        f.particles.position[[junc[1]],:],
+        f.configuration.box
+    ).reshape(-1) for junc in junctions])  
 
     # need to compute and accumulate rdf for two separate interfaces, in 2D.
     axis_indices = [i for i in range(3) if i!=axis]
@@ -258,7 +336,11 @@ def junction_RDF_accumulate(fs, systems, axis, nBins=40, rmax = 5):
         junctions = system.junctions()
         if not junctions:
             ValueError("Can not calculate junction RDF for system with no copolymers.")
-        pos = np.array([1/2*np.sum(f.particles.position[junc,:],axis=0) for junc in junctions])
+        pos = np.array([utility.get_midpoint(
+            f.particles.position[[junc[0]],:],
+            f.particles.position[[junc[1]],:],
+            f.configuration.box
+        ).reshape(-1) for junc in junctions])
         pos2D_left = pos[np.where(pos[:,axis] < 0)[0],:]
         pos2D_right = pos[np.where(pos[:,axis] > 0)[0],:]
         pos2D_left[:,axis] = 0 # set to 0 per freud requirement for 2D boxes
@@ -285,7 +367,11 @@ def junction_density_smeared(f, system: systemspec.System, axis, nBins=500, sigm
 
     # get junction positions and convert to 2D for left and right
     junctions = system.junctions()
-    pos = np.array([1/2*np.sum(f.particles.position[junc,:],axis=0) for junc in junctions])
+    pos = np.array([utility.get_midpoint(
+        f.particles.position[[junc[0]],:],
+        f.particles.position[[junc[1]],:],
+        f.configuration.box
+    ).reshape(-1) for junc in junctions])
     pos2D_left = pos[np.where(pos[:,axis] < 0)[0],:]
     pos2D_right = pos[np.where(pos[:,axis] > 0)[0],:]
     pos2D_left[:,axis] = 0 # set to 0 per freud requirement for 2D boxes
@@ -304,8 +390,6 @@ def junction_density_smeared(f, system: systemspec.System, axis, nBins=500, sigm
     gd_right.compute(aq_right)
 
     return gd_left, gd_right
-
-    
 
 def interfacial_tension_IK(dat, edges, axis):
 
@@ -326,7 +410,7 @@ def interfacial_tension_IK(dat, edges, axis):
 
     return gamma
 
-def interfacial_tension_global(dat, axis, L):
+def interfacial_tension_global(dat, axis, L=None):
 
     # dat is a hoomdtrajectory or frame containing log data
     # axis is the axis normal to the interface(s)
@@ -341,6 +425,9 @@ def interfacial_tension_global(dat, axis, L):
     pT_indices = [0, 3, 5]
     pN_idx = pT_indices.pop(axis)
     pdiff = p_tensor[pN_idx] - 1/2 * np.sum(p_tensor[pT_indices])
+    # get L from current frame if L = none. Useful if L can change
+    if L==None:
+        L = dat.configuration.box[axis]
     gamma = L * pdiff / 2 # Assume there are two interfaces
 
     return gamma

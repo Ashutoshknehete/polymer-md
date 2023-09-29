@@ -35,6 +35,13 @@ def wrap_coords(coords,boxsize):
 
     return wrapped 
 
+def get_midpoint(coord0,coord1,box):
+    
+    diff = wrap_coords(coord1-coord0,box)
+    midpt = wrap_coords(coord0 + diff/2,box)
+
+    return midpt
+
 def shift_pbc(coords, box, shift):
     # dimensions need to match
     # coords N x d, box 1 x d, shift 1 x d
@@ -102,10 +109,9 @@ def binned_density_ND(coord, box, N, nBins):
     return h
 
 def gaussian_density_ND(coord, box, N, nBins,sigma=2**(1/6)):
-
     cutoff = np.amax(box)/3
     gd = freud.density.GaussianDensity(nBins,cutoff,sigma)
-    gd.compute((coord,box))
+    gd.compute((box,coord))
 
     boxrange = [(0-box[d]/2, 0+box[d]/2) for d in range(N)]
     bins = [np.linspace(boxrange[d][0],boxrange[d][1],nBins+1) for d in range(N)]
