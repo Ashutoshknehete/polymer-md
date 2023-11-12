@@ -116,6 +116,84 @@ def internaldistances_all(f):
 
     return n, avgRsq
 
+def radius_gyration(f):
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: internaldistances_all(t)
+        return ts, list(map(func, f))
+    
+    # get box information
+    box = freud.box.Box.from_box(f.configuration.box)
+    
+    # get cluster
+    cluster = getBondedClusters(f)
+
+    # compute and return
+    avgRgToPower, RgSquared = structure.meanRadiusGyration(f.particles.position, cluster.cluster_keys, box)
+
+    return avgRgToPower, RgSquared
+
+def molecule_stretching(f, system: systemspec.System, BCP_params):
+
+    # calculates the mean squared Radius of gyration's x, y, and z components for homopolymers and BCPs
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: internaldistances_all(t)
+        return ts, list(map(func, f))
+    
+    # get box information
+    box = freud.box.Box.from_box(f.configuration.box)
+
+    # get information about which molecule is which type
+    types = list(set(system.componentlabels)) # some components might have same label. Treat them as identical
+    molSpeciesTypes = np.array([types.index(type) for type in system.speciesTypes()])
+    molIndices = system.indicesByMolecule()
+
+    Species_RgSquared_components = {}
+    for i,type in enumerate(types):
+        #if type != 'A' and type != 'B': # can uncomment this later to ignore homopolymer's data
+            # pull out the molecules just of this type
+            mask = molSpeciesTypes==i
+            molOfType = [molIndices[idx] for idx,isType in enumerate(mask) if isType]
+            # compute Rg**2 components over these molecules. pass all position because indices will be 
+            # maintained as relative to the entire system, so can't slice position without changing mol indices
+            mean_RgSquared, std_RgSquared = structure.meanSqRadiusGyrationComponents(f.particles.position, molOfType, box)
+            Species_RgSquared_components[type] = [mean_RgSquared, std_RgSquared]
+    
+    return Species_RgSquared_components
+
+def molecule_stretching_monomer(f, system: systemspec.System, BCP_params):
+
+    # calculates the mean squared Radius of gyration (calculated over arms and backbone)'s x, y, and z components for BCPs    
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: internaldistances_all(t)
+        return ts, list(map(func, f))
+    
+    # get box information
+    box = freud.box.Box.from_box(f.configuration.box)
+
+    # get information about which molecule is which type
+    types = list(set(system.componentlabels)) # some components might have same label. Treat them as identical
+    molSpeciesTypes = np.array([types.index(type) for type in system.speciesTypes()])
+    molIndices = system.indicesByMolecule()
+    
+    Species_RgSquared_components_monomer = {}       
+    for i,type in enumerate(types):
+        if type != 'A' and type != 'B':
+            # pull out the molecules just of this type
+            mask = molSpeciesTypes==i
+            molOfType = [molIndices[idx] for idx,isType in enumerate(mask) if isType]
+            # compute Rg**2 components over these molecules. pass all position because indices will be 
+            # maintained as relative to the entire system, so can't slice position without changing mol indices
+            mean_RgSquared_A, mean_RgSquared_B, std_RgSquared_A, std_RgSquared_B = structure.meanSqRadiusGyrationComponents_monomer(system, BCP_params, f.particles.position, f.particles.typeid, molOfType, box)
+            Species_RgSquared_components_monomer[type] = {'A':[mean_RgSquared_A, std_RgSquared_A], 'B':[mean_RgSquared_B, std_RgSquared_B]}
+
+    return Species_RgSquared_components_monomer
+
 def internaldistances_species(f, system: systemspec.System):
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
