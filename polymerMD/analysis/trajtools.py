@@ -400,6 +400,20 @@ def junction_RDF(f, system:systemspec.System, axis, nBins=40, rmax = 5):
     # return bin centers and histogram
     return rdf.bin_centers, rdf.rdf
 
+def junction_locations(f, system:systemspec.System, axis):
+    # get junction centers
+    junctions = system.junctions()
+    pos = np.array([utility.get_midpoint(
+        f.particles.position[[junc[0]],:],
+        f.particles.position[[junc[1]],:],
+        f.configuration.box
+    ).reshape(-1) for junc in junctions])  
+    
+    pos2D_left = pos[np.where(pos[:,axis] < 0)[0],:]
+    pos2D_right = pos[np.where(pos[:,axis] > 0)[0],:]
+
+    return pos2D_left, pos2D_right
+
 def junction_RDF_accumulate(fs, systems, axis, nBins=40, rmax = 5):
     
     # create rdf object
