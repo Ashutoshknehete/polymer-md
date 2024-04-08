@@ -481,7 +481,7 @@ def junction_density_smeared(f, system: systemspec.System, axis, nBins=500, sigm
     gd_left.compute(aq_left)
     gd_right.compute(aq_right)
 
-    return gd_left, gd_right
+    return aq_left, aq_right, gd_left, gd_right
 
 def interfacial_tension_IK(dat, edges, axis):
 
