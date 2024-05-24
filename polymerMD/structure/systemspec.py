@@ -145,6 +145,46 @@ class LinearPolymerSpec(Species):
 
         return bondtypes
 
+    @property 
+    def angles(self):
+        # this is specific to a linear polymer
+        # all the angles, indexing the first particle at 0 
+        angles = []
+        Ntot = 0
+        for idxblock,block in enumerate(self.blocks):
+            # within the block
+            for i in range(2,block.length):
+                angles.append([Ntot + (i-2), Ntot + (i-1), Ntot + i])
+            # connect the blocks. assumes next block is less than 1 long
+            if idxblock < (self.nBlocks-1):
+                angles.append([Ntot + block.length-2, Ntot + block.length-1, Ntot + block.length])
+                angles.append([Ntot + block.length-1, Ntot + block.length, Ntot + block.length+1])
+            # chain length so far
+            Ntot += block.length
+        
+        return angles
+    
+    @property 
+    def angletypes(self):
+        # this is specific to a linear polymer
+        # all the angle types
+        angletypes = []
+        Ntot = 0
+        for idxblock,block in enumerate(self.blocks):
+            # within the block
+            for i in range(2,block.length):
+                angletypes.append('{:s}-{:s}-{:s}'.format(block.monomer.label, block.monomer.label, block.monomer.label))
+            # connect the blocks. assumes next block is less than 1 long
+            if idxblock < (self.nBlocks-1):
+                uniqueids = [block.monomer.uniqueid, self.blocks[idxblock+1].monomer.uniqueid]
+                labels = [block.monomer.label, self.blocks[idxblock+1].monomer.label]
+                minID = np.argmin(uniqueids)
+                maxID = np.argmax(uniqueids)
+                angletypes.append('{:s}-{:s}-{:s}'.format(labels[minID], labels[minID], labels[maxID]))
+                angletypes.append('{:s}-{:s}-{:s}'.format(labels[minID], labels[maxID], labels[maxID]))
+        
+        return angletypes 
+
     @property
     def particletypes(self):
         types = []
@@ -260,10 +300,10 @@ class BranchedPolymerSpec(Species):
     @property
     def blocks(self):
         return self._blocks
-    
+
     @property
     def label(self):
-        return ''.join([block.monomer.label for block in self.blocks]) # labels of the elements in each block
+        return ''.join([block.monomer.label for block in self.blocks])
 
     @property
     def particletypes(self):
@@ -335,6 +375,28 @@ class BranchedPolymerSpec(Species):
             self._connectivity_list.append(vertex_index_connectivity_list)
         self._connectivity_list = [sorted(sublist) for sublist in self._connectivity_list]
         return self._connectivity_list
+
+    
+    @property
+    def connectivity_direction_list(self):
+        # Create a list to store dictionaries for each vertex
+        # for any neighbour connected to each vertex, is it at the block end or at the beginning?
+
+        connectivity_direction_list = []
+
+        for vertex_index in range(self.total_vertices):
+            vertex_dict = {}
+
+            for neighbour in self.connectivity_list[vertex_index]:
+                if neighbour in self.connectivity_at_start_list[vertex_index]:
+                    vertex_dict[neighbour] = "start"
+                elif neighbour in self.connectivity_at_end_list[vertex_index]:
+                    vertex_dict[neighbour] = "end"
+
+            # Append the dictionary to the list
+            connectivity_direction_list.append(vertex_dict)
+
+        return connectivity_direction_list
 
     @property
     def connectivity_at_start_list(self):
@@ -484,6 +546,97 @@ class BranchedPolymerSpec(Species):
                             bondtypes.append('{:s}-{:s}'.format(self.vertex.label, self.blocks[index].monomer.label))
 
         return bondtypes
+    
+    @property 
+    def angles(self):
+    
+        # this is specific to a branched polymer
+        # all the angles, assuming that the first particle is indexed at 0 
+        angles = []
+        Ntot = 0
+
+        # this array store [0,l1,l1+l2,l1+l2+l3...] where li is the length of each block, these elements act as IDs for connecting bonds
+        cumulative_sum_start = []
+        cumulative_sum = 0
+        for block_length in self.lengths:
+            cumulative_sum_start.append(cumulative_sum)
+            cumulative_sum += block_length
+        # this array store [l1-1,l1+l2-1,l1+l2+l3-1...] where li is the length of each block, these elements act as IDs for connecting bonds
+        cumulative_sum_end = []
+        cumulative_sum = 0
+        for block_length in self.lengths:
+            cumulative_sum += block_length
+            cumulative_sum_end.append(cumulative_sum-1)
+        
+        # connect all bonds in the branched polymer
+        for block in self.blocks:
+            # within the block
+            for i in range(0,block.length-2):
+                if (block.length > 2):
+                    angles.append([Ntot + (i), Ntot + (i+1), Ntot + (i+2)])
+            # chain length so far
+            Ntot += block.length
+        
+        # iterate over all vertices that are not chain free ends, to connect blocks to vertices
+        for junction_idx, junction_node in enumerate(self.junction_nodes):
+            # get the list of all vertices connected to each junction node
+            connected_vertices_list = self.connectivity_list[junction_node]
+            for element in connected_vertices_list:
+                angle = []
+                other_neighbours_list = [n for n in connected_vertices_list if n != element]
+                for other_neighbour in other_neighbours_list:
+                    if self.connectivity_direction_list[junction_node][other_neighbour]=="start":
+                        angle.append(cumulative_sum_start[other_neighbour-1])
+                    elif self.connectivity_direction_list[junction_node][other_neighbour]=="end":
+                        angle.append(cumulative_sum_end[other_neighbour])
+                angle.insert(1,Ntot+junction_idx)
+                angles.append(angle)
+        
+        return angles
+    
+    @property 
+    def angletypes(self):
+
+        # this is specific to a branched polymer
+        # all the angle types
+        Ntot = 0
+        angletypes = []
+
+        # this array store [0,l1,l1+l2,l1+l2+l3...] where li is the length of each block, these elements act as IDs for connecting bonds
+        cumulative_sum_start = []
+        cumulative_sum = 0
+        for block_length in self.lengths:
+            cumulative_sum_start.append(cumulative_sum)
+            cumulative_sum += block_length
+        # this array store [l1-1,l1+l2-1,l1+l2+l3-1...] where li is the length of each block, these elements act as IDs for connecting bonds
+        cumulative_sum_end = []
+        cumulative_sum = 0
+        for block_length in self.lengths:
+            cumulative_sum += block_length
+            cumulative_sum_end.append(cumulative_sum-1)
+
+        for idxblock, block in enumerate(self.blocks):
+            # within the block
+            for i in range(0,block.length-2):
+                angletypes.append('{:s}-{:s}-{:s}'.format(block.monomer.label, block.monomer.label, block.monomer.label))
+     
+        # connect the blocks
+        # iterate over all vertices that are not chain free ends, to connect blocks to vertices
+        for junction_idx, junction_node in enumerate(self.junction_nodes):
+            # get the list of all vertices connected to each junction node
+            connected_vertices_list = self.connectivity_list[junction_node]
+            for element in connected_vertices_list:
+                angletype = []
+                other_neighbours_list = [n for n in connected_vertices_list if n != element]
+                for other_neighbour in other_neighbours_list:
+                    if self.connectivity_direction_list[junction_node][other_neighbour]=="start":
+                        angletype.append(self.particletypes[cumulative_sum_start[other_neighbour-1]])
+                    elif self.connectivity_direction_list[junction_node][other_neighbour]=="end":
+                        angletype.append(self.particletypes[cumulative_sum_end[other_neighbour]])
+                angletype.insert(1,self.particletypes[junction_node])
+                angletypes.append('-'.join(angletype))
+
+        return angletypes 
 
 class MonatomicMoleculeSpec(Species):
 
@@ -776,6 +929,22 @@ class System:
                     moljunctions.append(bond)
             junctions.append(moljunctions)        
         return junctions
+    
+    def angles(self):
+
+        angles = []
+        angletypes = []
+        idx_start = 0
+        for component in self.components:
+            if not component.species.isPolymer:
+                idx_start += component.numparticles
+                continue
+            for i in range(component.N):
+                angles += ( np.array(component.species.angles) + idx_start ).tolist()
+                angletypes += component.species.angletypes
+                idx_start += component.species.length
+        
+        return angles, angletypes
     
 # Workflow:
 # Make a system
