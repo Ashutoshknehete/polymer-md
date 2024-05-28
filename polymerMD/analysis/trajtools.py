@@ -98,6 +98,28 @@ def density_1D_species(f, system: systemspec.System, nBins=100, axis=0, method='
     
     return hists
 
+def density_1D_lowest(f, nBins = 100, nLowest=10, axis=0, method='smoothed'):
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: density_1D_lowest(t, nBins=nBins, nLowest=nLowest, axis=axis, method=method)
+        return ts, list(map(func, f))
+
+    # get density
+    if method=='binned':
+        profile = utility.binned_density_1D(f.particles.position, 
+                                            f.configuration.box, 
+                                            axis=axis, nBins=nBins)
+    elif method=='smoothed':
+        profile = utility.smoothed_density_1D(f.particles.position, 
+                                            f.configuration.box, 
+                                            axis=axis, nBins=nBins, width=1)
+        
+    # find lowest slices
+    lowestdensities = sorted(profile[0].tolist())[0:nLowest]
+
+    return lowestdensities
+
 def internaldistances_all(f):
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
@@ -120,7 +142,7 @@ def radius_gyration(f):
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
         ts = [f[i].configuration.step for i in range(len(f))]
-        func = lambda t: internaldistances_all(t)
+        func = lambda t: radius_gyration(t)
         return ts, list(map(func, f))
     
     # get box information
@@ -136,11 +158,11 @@ def radius_gyration(f):
 
 def molecule_stretching(f, system: systemspec.System, BCP_params):
 
-    # calculates the mean squared Radius of gyration's x, y, and z components for homopolymers and BCPs
+    # calculates the mean squared Radius of gyration's x, y, and z components for homopolymers and graft BCPs
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
         ts = [f[i].configuration.step for i in range(len(f))]
-        func = lambda t: internaldistances_all(t)
+        func = lambda t: molecule_stretching(t, system, BCP_params=BCP_params)
         return ts, list(map(func, f))
     
     # get box information
@@ -153,7 +175,7 @@ def molecule_stretching(f, system: systemspec.System, BCP_params):
 
     Species_RgSquared_components = {}
     for i,type in enumerate(types):
-        #if type != 'A' and type != 'B': # can uncomment this later to ignore homopolymer's data
+        if type != 'A' and type != 'B': # can uncomment this later to ignore homopolymer's data
             # pull out the molecules just of this type
             mask = molSpeciesTypes==i
             molOfType = [molIndices[idx] for idx,isType in enumerate(mask) if isType]
@@ -166,11 +188,11 @@ def molecule_stretching(f, system: systemspec.System, BCP_params):
 
 def molecule_stretching_monomer(f, system: systemspec.System, BCP_params):
 
-    # calculates the mean squared Radius of gyration (calculated over arms and backbone)'s x, y, and z components for BCPs    
+    # calculates the mean squared Radius of gyration (calculated over arms and backbone)'s x, y, and z components for graft BCPs    
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
         ts = [f[i].configuration.step for i in range(len(f))]
-        func = lambda t: internaldistances_all(t)
+        func = lambda t: molecule_stretching_monomer(t, system, BCP_params=BCP_params)
         return ts, list(map(func, f))
     
     # get box information
@@ -295,9 +317,56 @@ def lineardistancesfromjunctions(f, system: systemspec.System):
     
     return blockdata
 
-def volfrac_fields(f, nBins=None, density_type='binned'):
+def endToEndVectors(f, system: systemspec.System):
 
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: endToEndVectors(t, system=system)
+        return ts, list(map(func, f))
+    
+    # get box information
+    box = freud.box.Box.from_box(f.configuration.box)
+
+    # get chain ends
+    chainidxs = system.indicesByMolecule()
+    chainends = [[chain[0],chain[-1]] for chain in chainidxs]
+
+    # calculate vectors
+    vecs = np.array(
+        [box.wrap(f.particles.position[end[1],:]-f.particles.position[end[0]]) for end in chainends]
+    )
+    
+    return vecs
+
+def endToEndVectors_backbone(f, system: systemspec.System, BCP_params):
+
+    # for graft copolymers
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: endToEndVectors_backbone(t, system=system, BCP_params=BCP_params)
+        return ts, list(map(func, f))
+    
+    # get box information
+    box = freud.box.Box.from_box(f.configuration.box)
+
+    # get chain ends
+    chainidxs = system.indicesByMolecule()
+
+    M_CP = BCP_params[0]
+    N_CP = BCP_params[1]
+    n_arms = BCP_params[2]
+
+    chainends = [[chain[0],chain[N_CP[0]-1]] for chain in chainidxs]
+    # calculate vectors
+    vecs = np.array(
+        [box.wrap(f.particles.position[end[1],:]-f.particles.position[end[0]]) for end in chainends]
+    )
+    
+    return vecs
+
+def volfrac_fields(f, nBins=None, density_type='binned',to_volfrac=True):
+
+    if not isinstance(f, gsd.hoomd.Frame):
         ts = [f[i].configuration.step for i in range(len(f))]
         func = lambda t: volfrac_fields(t, nBins=nBins) # to pass non-iterable argument
         return ts, list(map(func, f))
@@ -324,9 +393,43 @@ def volfrac_fields(f, nBins=None, density_type='binned'):
             hists[type] = utility.gaussian_density_ND(coords, box, N=3, nBins=nBins)
 
     # convert to "volume fractions"
-    volfracs = utility.count_to_volfrac(hists)
+    if to_volfrac:
+        hists = utility.count_to_volfrac(hists)
 
-    return volfracs
+    return hists
+
+def volfrac_fields_species(f, system, nBins=None, density_type='binned',to_volfrac=True):
+
+    if not isinstance(f, gsd.hoomd.Frame):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: volfrac_fields_species(t, system, nBins, density_type, to_volfrac) # to pass non-iterable argument
+        return ts, list(map(func, f))
+
+    # f is a frame of a trajectory (a snapshot)
+    box = f.configuration.box[0:3]
+    types = list(set(system.componentlabels)) # some components might have same label. Treat them as identical
+    particleSpeciesTypeID = np.array([types.index(type) for type in system.particleSpeciesTypes()])
+
+    if nBins == None:
+        # determine number of bins based on number of particles
+        nParticles = f.particles.N
+        nBins = int(0.5 * nParticles**(1/3))
+
+    # compute 3D binned density functions for each particle type
+    hists = {}
+    for i,type in enumerate(types):
+        mask = particleSpeciesTypeID==i
+        coords = f.particles.position[mask,:]
+        if density_type=='binned':
+            hists[type] = utility.binned_density_ND(coords, box, N=3, nBins=nBins)
+        elif density_type=='gaussian':
+            hists[type] = utility.gaussian_density_ND(coords, box, N=3, nBins=nBins)
+
+    # convert to "volume fractions"
+    if to_volfrac:
+        hists = utility.count_to_volfrac(hists)
+
+    return hists
 
 def exchange_average(f, nBins=None,density_type='binned'):
 
@@ -368,6 +471,54 @@ def overlap_integral(f, nBins=None):
             overlaps[j,i] = overlaps[i,j]
 
     return overlaps
+
+def overlap_integral_species(f, system, nBins=None, density_type='binned',to_volfrac=True):
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: overlap_integral_species(t, system, nBins, density_type, to_volfrac) # to pass non-iterable argument
+        return ts, list(map(func, f))
+
+    # f is a frame of a trajectory (a snapshot)
+    volfracs = volfrac_fields_species(f, system, nBins, density_type=density_type,to_volfrac=to_volfrac)
+    types = list(volfracs.keys())
+    nTypes = len(types)
+
+    # for each function, compute overlap integral.  
+    x = volfracs[types[0]][1] # get coordinates of samples. Should be same for different particle types in same frame with same number of bins
+    overlaps = np.zeros((nTypes,nTypes))
+    for i in range(nTypes):
+        for j in range(i, nTypes):
+            dat = np.multiply(volfracs[types[i]][0], volfracs[types[j]][0])
+            overlaps[i,j] = utility.integral_ND( dat, x, N=3 )
+            overlaps[j,i] = overlaps[i,j]
+
+    return overlaps, types
+
+def overlap_integral_species_normalized(f, system, nBins=None, density_type='binned',to_volfrac=True):
+
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
+        ts = [f[i].configuration.step for i in range(len(f))]
+        func = lambda t: overlap_integral_species_normalized(t, system, nBins, density_type, to_volfrac) # to pass non-iterable argument
+        return ts, list(map(func, f))
+
+    # f is a frame of a trajectory (a snapshot)
+    volfracs = volfrac_fields_species(f, system, nBins, density_type=density_type,to_volfrac=to_volfrac)
+    types = list(volfracs.keys())
+    nTypes = len(types)
+
+    # for each function, compute overlap integral.  
+    x = volfracs[types[0]][1] # get coordinates of samples. Should be same for different particle types in same frame with same number of bins
+    overlaps = np.zeros((nTypes,nTypes))
+    for i in range(nTypes):
+        Ii = utility.integral_ND(volfracs[types[i]][0], x, N=3)
+        for j in range(i, nTypes):
+            Ij = utility.integral_ND(volfracs[types[j]][0], x, N=3)
+            dat = np.multiply(volfracs[types[i]][0], volfracs[types[j]][0])
+            overlaps[i,j] = utility.integral_ND( dat, x, N=3 )/(Ii*Ij)**(1/2)
+            overlaps[j,i] = overlaps[i,j]
+
+    return overlaps, types
 
 def junction_RDF(f, system:systemspec.System, axis, nBins=40, rmax = 5):
     # get junction centers
