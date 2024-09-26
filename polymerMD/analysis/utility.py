@@ -61,6 +61,7 @@ def binned_density_1D(coord, box, axis, nBins):
     h = np.histogram(coord[:,axis], nBins, range=(lmin,lmax))
 
     binvol = box[0]*box[1]*box[2] / nBins
+
     h = (h[0] / binvol, h[1])
 
     return h
@@ -92,7 +93,7 @@ def smoothed_density_1D(coord, box, axis, nBins):
             xpbc[i] = xbins[i]+box[axis]
     for dist in dists:
         dens += dist.pdf(xpbc[:-1])/nparticles
-        
+
 
     return (dens,xbins) # tuple to be consistent with binned density histograms
 
@@ -112,7 +113,6 @@ def gaussian_density_ND(coord, box, N, nBins,sigma=2**(1/6)):
     cutoff = np.amax(box)/3
     gd = freud.density.GaussianDensity(nBins,cutoff,sigma)
     gd.compute((box,coord))
-
     boxrange = [(0-box[d]/2, 0+box[d]/2) for d in range(N)]
     bins = [np.linspace(boxrange[d][0],boxrange[d][1],nBins+1) for d in range(N)]
     h = (gd.density, bins)
@@ -126,13 +126,44 @@ def count_to_volfrac(hists):
     # Note: only using np histograms for convenience, these are not proper histograms once they've been rescaled
     # differently at each bin like this!! 
 
+    '''
     types = list(hists.keys())
     totcount = np.zeros_like(hists[types[0]][0])
     for hist in hists.values():
         totcount += hist[0]
     for type,hist in hists.items():
         hists[type] = (hists[type][0]/totcount, hists[type][1])
+    '''
 
+def count_to_volfrac(hists):
+    # Takes a dict of numpy histograms, assumed to each be a count of a different species with the same bins,
+    # and converts them to volume fractions such that the sum of each histogram sums to 1 at each bin.
+
+    types = list(hists.keys())
+    
+    # Initialize totcount as zeros with the same shape as one of the histograms
+    totcount = np.zeros_like(hists[types[0]][0])
+
+    # Sum the counts across all species for each bin
+    for hist in hists.values():
+        totcount += hist[0]
+
+    # Check for voiding condition
+    if np.any(totcount < 0.8): # cutoff can be changed
+        # Normalize by the maximum element of totcount
+        # this will be valid for many mechanical calculations
+        max_count = np.max(totcount)
+        for type, hist in hists.items():
+            hists[type] = (hist[0] / max_count, hist[1])
+    else:
+        # Normalize each species histogram by the total count in each bin
+        # this will be valid for most interfacial tension calculations
+        for type, hist in hists.items():
+            # Prevent division by zero: Replace zeros in totcount with 1 (or you can skip those bins)
+            zero_bins = totcount == 0
+            hists[type][0][zero_bins] = 0  # Set bins with zero particles across all species to 0
+            hists[type] = (hist[0] / totcount, hist[1])
+    
     return hists
 
 def integral_ND(dat, x, N):

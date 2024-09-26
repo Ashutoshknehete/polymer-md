@@ -70,7 +70,6 @@ def density_1D_species(f, system: systemspec.System, nBins=100, axis=0, method='
     # system is a SystemSpec object describing the topology and composition of the system
     # nBins is the number of bins to use to compute the density
     # axis is the axis to plot the density along. Density effectively averaged over the other two.
-
     if isinstance(f, gsd.hoomd.HOOMDTrajectory):
         ts = [f[i].configuration.step for i in range(len(f))]
         func = lambda t: density_1D_species(t, system, nBins=nBins, axis=axis)
@@ -92,9 +91,9 @@ def density_1D_species(f, system: systemspec.System, nBins=100, axis=0, method='
             hists[type] = utility.smoothed_density_1D(coords, box, axis, nBins)
         elif method=='binned':
             hists[type] = utility.binned_density_1D(coords, box, axis, nBins)
-    
+
     # modify histograms so that sum over species in each bin is 1. IE: convert to vol frac
-    hists = utility.count_to_volfrac(hists)
+    hists = utility.count_to_volfrac(hists) # this assumes density is continuous! Voiding is excluded
     
     return hists
 
@@ -356,7 +355,7 @@ def endToEndVectors_backbone(f, system: systemspec.System, BCP_params):
     N_CP = BCP_params[1]
     n_arms = BCP_params[2]
 
-    chainends = [[chain[0],chain[N_CP[0]-1]] for chain in chainidxs]
+    chainends = [[chain[0],chain[-1]] for chain in chainidxs]
     # calculate vectors
     vecs = np.array(
         [box.wrap(f.particles.position[end[1],:]-f.particles.position[end[0]]) for end in chainends]
@@ -366,7 +365,7 @@ def endToEndVectors_backbone(f, system: systemspec.System, BCP_params):
 
 def volfrac_fields(f, nBins=None, density_type='binned',to_volfrac=True):
 
-    if not isinstance(f, gsd.hoomd.Frame):
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
         ts = [f[i].configuration.step for i in range(len(f))]
         func = lambda t: volfrac_fields(t, nBins=nBins) # to pass non-iterable argument
         return ts, list(map(func, f))
@@ -400,7 +399,7 @@ def volfrac_fields(f, nBins=None, density_type='binned',to_volfrac=True):
 
 def volfrac_fields_species(f, system, nBins=None, density_type='binned',to_volfrac=True):
 
-    if not isinstance(f, gsd.hoomd.Frame):
+    if isinstance(f, gsd.hoomd.HOOMDTrajectory):
         ts = [f[i].configuration.step for i in range(len(f))]
         func = lambda t: volfrac_fields_species(t, system, nBins, density_type, to_volfrac) # to pass non-iterable argument
         return ts, list(map(func, f))
@@ -506,7 +505,6 @@ def overlap_integral_species_normalized(f, system, nBins=None, density_type='bin
     volfracs = volfrac_fields_species(f, system, nBins, density_type=density_type,to_volfrac=to_volfrac)
     types = list(volfracs.keys())
     nTypes = len(types)
-
     # for each function, compute overlap integral.  
     x = volfracs[types[0]][1] # get coordinates of samples. Should be same for different particle types in same frame with same number of bins
     overlaps = np.zeros((nTypes,nTypes))

@@ -169,6 +169,15 @@ def meanSqRadiusGyrationComponents(coord, molecules, box, power=2):
     RgSquared_z = np.array([np.mean(
         distances_sq_z[[points1.index(i) for i in mol]], axis=0
     ) for mol in molecules])
+
+    # ratio calculated below is the mean of (individual anisometry values of all copolymers)
+    # previously, we were using mean_RgSquared_x, mean_RgSquared_y, and mean_RgSquared_z to get anisometry
+    # both definitions are different based on how the final mean is calculated
+    # final data returned by this function has this ratio printed too, just in case we need it
+
+    ratio = 2 * RgSquared_x / (RgSquared_y + RgSquared_z)
+    average_ratio = np.mean(ratio)
+    std_dev_ratio = np.std(ratio)    
     
     mean_RgSquared_x = np.mean(RgSquared_x)
     mean_RgSquared_y = np.mean(RgSquared_y)
@@ -178,8 +187,10 @@ def meanSqRadiusGyrationComponents(coord, molecules, box, power=2):
     std_RgSquared_y = np.std(RgSquared_y)/np.sqrt(len(RgSquared_y))
     std_RgSquared_z = np.std(RgSquared_z)/np.sqrt(len(RgSquared_z))
     
-    mean_RgSquared = [mean_RgSquared_x, mean_RgSquared_y, mean_RgSquared_z]
-    std_RgSquared = [std_RgSquared_x, std_RgSquared_y, std_RgSquared_z]
+    # final data to be returned below
+
+    mean_RgSquared = [mean_RgSquared_x, mean_RgSquared_y, mean_RgSquared_z, average_ratio]
+    std_RgSquared = [std_RgSquared_x, std_RgSquared_y, std_RgSquared_z, std_dev_ratio]
 
     return mean_RgSquared, std_RgSquared
 
@@ -309,13 +320,26 @@ def meanSqRadiusGyrationComponents_monomer(system, BCP_params, coord, particle_t
     std_RgSquared_B_y = np.std(np.array(mean_sq_Rg_B_y))/np.sqrt(M_CP)
     std_RgSquared_B_z = np.std(np.array(mean_sq_Rg_B_z))/np.sqrt(M_CP) 
 
-    mean_RgSquared_A = [mean_RgSquared_A_x, mean_RgSquared_A_y, mean_RgSquared_A_z]
-    mean_RgSquared_B = [mean_RgSquared_B_x, mean_RgSquared_B_y, mean_RgSquared_B_z]
+    # ratio calculated below is the mean of (individual anisometry values of all copolymers)
+    # previously, we were using mean_RgSquared_A_x, mean_RgSquared_A_y, and mean_RgSquared_A_z to get anisometry_A
+    # both definitions are different based on how the final mean is calculated
+    # final data returned by this function has this ratio printed too, just in case we need it
+
+    ratio_A_array = 2*np.array(mean_sq_Rg_A_x)/(np.array(mean_sq_Rg_A_y)+np.array(mean_sq_Rg_A_z))
+    ratio_B_array = 2*np.array(mean_sq_Rg_B_x)/(np.array(mean_sq_Rg_B_y)+np.array(mean_sq_Rg_B_z))
+    ratio_A_mean = np.mean(ratio_A_array)
+    ratio_B_mean = np.mean(ratio_B_array)
+    ratio_A_std = np.std(ratio_A_array)
+    ratio_B_std = np.std(ratio_B_array)
+
+    # final data to be returned below
+    mean_RgSquared_A = [mean_RgSquared_A_x, mean_RgSquared_A_y, mean_RgSquared_A_z, ratio_A_mean]
+    mean_RgSquared_B = [mean_RgSquared_B_x, mean_RgSquared_B_y, mean_RgSquared_B_z, ratio_B_mean]
     mean_RgSquared_A = np.array(mean_RgSquared_A, dtype=np.float64).tolist()
     mean_RgSquared_B = np.array(mean_RgSquared_B, dtype=np.float64).tolist()
 
-    std_RgSquared_A = [std_RgSquared_A_x, std_RgSquared_A_y, std_RgSquared_A_z]
-    std_RgSquared_B = [std_RgSquared_B_x, std_RgSquared_B_y, std_RgSquared_B_z]
+    std_RgSquared_A = [std_RgSquared_A_x, std_RgSquared_A_y, std_RgSquared_A_z, ratio_A_std]
+    std_RgSquared_B = [std_RgSquared_B_x, std_RgSquared_B_y, std_RgSquared_B_z, ratio_B_std]
 
     return mean_RgSquared_A, mean_RgSquared_B, std_RgSquared_A, std_RgSquared_B
 
