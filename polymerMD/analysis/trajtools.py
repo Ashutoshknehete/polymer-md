@@ -413,7 +413,6 @@ def volfrac_fields_species(f, system, nBins=None, density_type='binned',to_volfr
         # determine number of bins based on number of particles
         nParticles = f.particles.N
         nBins = int(0.5 * nParticles**(1/3))
-
     # compute 3D binned density functions for each particle type
     hists = {}
     for i,type in enumerate(types):
