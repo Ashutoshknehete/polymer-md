@@ -274,6 +274,15 @@ class BranchedPolymerSpec(Species):
         poly = cls(monomers, lengths, vertexID0, vertexID1, vertex, shape)
         return poly
     
+    # connectivity works in a straightforward manner for linear chains
+    # but for branched chains, the numbering of particles is not simple
+    # based on the way the code was constructed for BranchedPolymerSpec, --
+    # -- the indices go from bb block 1 (free-end1 to vertex1), bb block 2 (vertex1 to vertex2), ... bb block end (vertex-n to free-end2), 
+    # graft 1 (free-end to vertex1), graft 2 (free-end to vertex2), ..., AND THEN vertex1, vertex2, ..., vertex-n
+    # the bond info and angle info is according to this numbering of particle, dont worry, the .gsd dump output is consistent
+    # but when you extract coordinates for analysis, be sure what you are looking at;
+    # for instance, when you want BB coordinates, u need to take bb blocks (without the junctions) and then take the junctions from the end
+
     @property
     def length(self):
         return np.sum([block.length for block in self.blocks]) + len(self.junction_nodes)
@@ -804,6 +813,13 @@ class System:
         # faster than running particleType for each particle
         # len(types) = number of particles
 
+        # ordering of beads works in a straightforward manner for linear chains
+        # but for branched chains, the numbering of particles is not simple
+        # based on the way the code was constructed for BranchedPolymerSpec, --
+        # -- the indices go from bb block 1 (free-end1 to vertex1), bb block 2 (vertex1 to vertex2), ... bb block end (vertex-n to free-end2), 
+        # graft 1 (free-end to vertex1), graft 2 (free-end to vertex2), ..., and THEN vertex1, vertex2, ..., vertex-n
+
+
         types = []
         for component in self.components:
             types += component.particletypes
@@ -813,6 +829,13 @@ class System:
     def particleSpeciesTypes(self):
         # returns a list of the type of species a particle is a part of, for all particles
         # len(types) = number of particles
+
+        # ordering of beads works in a straightforward manner for linear chains
+        # but for branched chains, the numbering of particles is not simple
+        # based on the way the code was constructed for BranchedPolymerSpec, --
+        # -- the indices go from bb block 1 (free-end1 to vertex1), bb block 2 (vertex1 to vertex2), ... bb block end (vertex-n to free-end2), 
+        # graft 1 (free-end to vertex1), graft 2 (free-end to vertex2), ..., and THEN vertex1, vertex2, ..., vertex-n
+
 
         types = []
         for component in self.components:
@@ -834,6 +857,12 @@ class System:
     def indicesByMolecule(self):
         # returns a list of lists where each list corresponds with a given species
         # contains the indices of all particles in that polymer
+
+        # works in a straightforward manner for linear chains
+        # but for branched chains, the numbering of particles is not simple
+        # based on the way the code was constructed for BranchedPolymerSpec, --
+        # -- the indices go from bb block 1 (free-end1 to vertex1), bb block 2 (vertex1 to vertex2), ... bb block end (vertex-n to free-end2), 
+        # graft 1 (free-end to vertex1), graft 2 (free-end to vertex2), ..., and THEN vertex1, vertex2, ..., vertex-n
         
         indices = []
         idx_current = 0
@@ -847,20 +876,40 @@ class System:
         return indices
 
     def indicesByBlockByMolecule(self):
-        # assumes block copolymer!!!
+        # assumes linear block copolymer!!! CHECK FOR BRANCHED
         indices = []
         idx_current = 0
         for component in self.components:
             if not component.species.isPolymer: # assuming only polymers have blocks! 
                 idx_start += component.numparticles
                 continue
-            for i in range(component.N):
-                molindices = []
-                for block in component.species.blocks:
-                    blockindices = list(range(idx_current,idx_current+block.length))
-                    molindices.append(blockindices)
-                    idx_current += block.length               
-                indices.append(molindices)
+            if (component.species.shape == "linear"):
+                for i in range(component.N):
+                    molindices = []
+                    for block in component.species.blocks:
+                        blockindices = list(range(idx_current,idx_current+block.length))
+                        molindices.append(blockindices)
+                        idx_current += block.length               
+                    indices.append(molindices)
+
+            elif (component.species.shape == "graft"):
+
+                length = (component.species.length)
+                nBlocks = (component.species.nBlocks)
+                particletypes = (component.species.particletypes)
+                n_backbone_blocks = (component.species.n_backbone_blocks)
+                n_graft_blocks = (component.species.n_graft_blocks)
+                n_grafts = len(component.species.junction_nodes)
+                block_lengths_array = (component.species.lengths)
+
+                for i in range(component.N):
+                    molindices = []
+                    idx_current += n_grafts
+                    for block in component.species.blocks:
+                        blockindices = list(range(idx_current,idx_current+block.length))
+                        molindices.append(blockindices)
+                        idx_current += block.length               
+                    indices.append(molindices)
 
         return indices
 

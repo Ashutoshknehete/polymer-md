@@ -66,6 +66,7 @@ def meanRadiusGyration(coord, molecules, box, power=2):
             
     # use box object to compute distances from com
     distances = box.compute_distances(pos[points1], pos[points2])
+    # pos[points1]  takes only copolymer coordinates according to indices contained in molecules
 
     # square and average the distances
     distancesSquared = np.square(distances)
@@ -134,6 +135,9 @@ def meanSqRadiusGyrationComponents(coord, molecules, box, power=2):
         avgSqRg_x, avgSqRg_y, avgSqRg_z (float): average mean squared radius of gyration of molecule x, y, and z component respectively
     '''
 
+    # this code is written in a bad/non-optimal way; that goes against the spirit of object oriented programming! Realized this late!
+    # there are functions in systemspec.py that can be used to retreive copolymer info, with proper indexing and everything!
+
     # loop over molecules and identify indices of distances to compute
     # this way we only make one call to compute distances.. much faster!
     points1 = []
@@ -141,17 +145,17 @@ def meanSqRadiusGyrationComponents(coord, molecules, box, power=2):
     pos = coord
     for mol in molecules:
         # unwrap coordinates in molecule to be continuous based on first particle
-        r0 = pos[mol[0],:]
+        r0 = pos[mol[0],:] 
         pos[mol,:] = r0 + wrap_coords(pos[mol,:] - r0, box.L)
         for i in mol:
-            points1.append(i)
+            points1.append(i) 
             points2.append(pos.shape[0]) # the eventual location of the com
         com = np.mean(pos[mol,:],axis=0).reshape(1,-1)
         pos = np.append(pos,com,axis=0)
     
-    x_coords = pos[points1][:,0]
-    y_coords = pos[points1][:,1]
-    z_coords = pos[points1][:,2]
+    x_coords = pos[points1][:,0] # this takes only x copolymer coordinates according to indices contained in molecules
+    y_coords = pos[points1][:,1] # this takes only y copolymer coordinates according to indices contained in molecules
+    z_coords = pos[points1][:,2] # this takes only z copolymer coordinates according to indices contained in molecules
     x_coords_COM = pos[points2][:,0]
     y_coords_COM = pos[points2][:,1]
     z_coords_COM = pos[points2][:,2]
@@ -175,7 +179,7 @@ def meanSqRadiusGyrationComponents(coord, molecules, box, power=2):
     # both definitions are different based on how the final mean is calculated
     # final data returned by this function has this ratio printed too, just in case we need it
 
-    ratio = 2 * RgSquared_x / (RgSquared_y + RgSquared_z)
+    ratio = 2 * RgSquared_x / (RgSquared_y + RgSquared_z)  # ratio is a list of molecule anisometry values for each molecule
     average_ratio = np.mean(ratio)
     std_dev_ratio = np.std(ratio)    
     
@@ -198,18 +202,25 @@ def meanSqRadiusGyrationComponents_monomer(system, BCP_params, coord, particle_t
     '''
     Args:
         coord (np.ndarray):             Nx3 array for the coordinates of N particles
-        molecules (List[List[int]]):    list of indices of particles in each molecule
+        molecules (List[List[int]]):    list of indices of particles in each molecule (here, they are copolymers)
         box (freud.box.Box):            box used to compute distances
         power (float or int):           power to raise distances to inside average         
     Returns:
         avgSqRg_x, avgSqRg_y, avgSqRg_z (float): average mean squared radius of gyration of molecule x, y, and z component respectively
     '''
 
+    # coord and particle_types_list is taken from f.particles.position and f.particles.typeid respectively
+    # these lists are properly defined when system was set up during system generation/initialization
+
+    # this code is written in a bad/non-optimal way; that goes against the spirit of object oriented programming! Realized this late!
+    # there are functions in systemspec.py that can be used to retreive copolymer info, with proper indexing and everything!
+
     # loop over molecules and identify indices of distances to compute
     # this way we only make one call to compute distances.. much faster!
+
     points1 = []
     points2 = []
-    particle_types = []
+    particle_types = [] 
     pos = coord
     n_molecules = len(molecules)
     for mol in molecules:
@@ -219,16 +230,19 @@ def meanSqRadiusGyrationComponents_monomer(system, BCP_params, coord, particle_t
         for i in mol:
             points1.append(i)
             points2.append(pos.shape[0]) # the eventual location of the com
-            particle_types.append(particle_types_list[i])
+            particle_types.append(particle_types_list[i]) 
+            # since i is the index of a bead from a copolymer, here we are taking the particle type of the coopolymer bead
+        
         com = np.mean(pos[mol,:],axis=0).reshape(1,-1)
         pos = np.append(pos,com,axis=0)
         
-    x_coords = pos[points1][:,0]
-    y_coords = pos[points1][:,1]
-    z_coords = pos[points1][:,2]
-    x_coords_COM = pos[points2][:,0]
-    y_coords_COM = pos[points2][:,1]
-    z_coords_COM = pos[points2][:,2]
+    x_coords = pos[points1][:,0] # this takes only x copolymer coordinates according to indices contained in molecules
+    y_coords = pos[points1][:,1] # this takes only y copolymer coordinates according to indices contained in molecules
+    z_coords = pos[points1][:,2] # this takes only z copolymer coordinates according to indices contained in molecules
+    
+    x_coords_COM = pos[points2][:,0] # dont need molecule's overall x-COM details in this function
+    y_coords_COM = pos[points2][:,1] # dont need molecule's overall y-COM details in this function
+    z_coords_COM = pos[points2][:,2] # dont need molecule's overall z-COM details in this function
     
     # average values for a particular monomer over all the chains is directly calculated, 
     # instead of separately for each chain and then again taking average since its easier this way

@@ -170,14 +170,16 @@ def molecule_stretching(f, system: systemspec.System, BCP_params):
     # get information about which molecule is which type
     types = list(set(system.componentlabels)) # some components might have same label. Treat them as identical
     molSpeciesTypes = np.array([types.index(type) for type in system.speciesTypes()])
-    molIndices = system.indicesByMolecule()
+    molIndices = system.indicesByMolecule() # list of sublists, each sublist contains indices of a chain
+    # indicesByMolecule() returns indices in a non-trivial way for branched polymers, see defintion
+    # but it does not matter here because all bead indices from copolymer are used and averaged to calculate Rg**2
 
     Species_RgSquared_components = {}
     for i,type in enumerate(types):
         if type != 'A' and type != 'B': # can uncomment this later to ignore homopolymer's data
             # pull out the molecules just of this type
             mask = molSpeciesTypes==i
-            molOfType = [molIndices[idx] for idx,isType in enumerate(mask) if isType]
+            molOfType = [molIndices[idx] for idx,isType in enumerate(mask) if isType] # takes only copolymer indices
             # compute Rg**2 components over these molecules. pass all position because indices will be 
             # maintained as relative to the entire system, so can't slice position without changing mol indices
             mean_RgSquared, std_RgSquared = structure.meanSqRadiusGyrationComponents(f.particles.position, molOfType, box)
@@ -199,9 +201,11 @@ def molecule_stretching_monomer(f, system: systemspec.System, BCP_params):
 
     # get information about which molecule is which type
     types = list(set(system.componentlabels)) # some components might have same label. Treat them as identical
-    molSpeciesTypes = np.array([types.index(type) for type in system.speciesTypes()])
+    molSpeciesTypes = np.array([types.index(type) for type in system.speciesTypes()]) # takes only copolymer indices
     molIndices = system.indicesByMolecule()
-    
+    # indicesByMolecule() returns indices in a non-trivial way for branched polymers, see defintion
+    # but it does not matter here because all bead indices from copolymer are used and averaged to calculate Rg**2
+
     Species_RgSquared_components_monomer = {}       
     for i,type in enumerate(types):
         if type != 'A' and type != 'B':
@@ -349,13 +353,15 @@ def endToEndVectors_backbone(f, system: systemspec.System, BCP_params):
     box = freud.box.Box.from_box(f.configuration.box)
 
     # get chain ends
-    chainidxs = system.indicesByMolecule()
+    chainidxs = system.indicesByMolecule() # order is not trivial for branched, check indicesByMolecule()
 
     M_CP = BCP_params[0]
     N_CP = BCP_params[1]
     n_arms = BCP_params[2]
+    length_bb = N_CP[0]
+    backbone_end_idx = length_bb - n_arms - 1 # based on the order from indicesByMolecule() for branched
 
-    chainends = [[chain[0],chain[-1]] for chain in chainidxs]
+    chainends = [[chain[0],chain[backbone_end_idx]] for chain in chainidxs]
     # calculate vectors
     vecs = np.array(
         [box.wrap(f.particles.position[end[1],:]-f.particles.position[end[0]]) for end in chainends]
