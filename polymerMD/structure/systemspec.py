@@ -883,6 +883,7 @@ class System:
             if not component.species.isPolymer: # assuming only polymers have blocks! 
                 idx_start += component.numparticles
                 continue
+            
             if (component.species.shape == "linear"):
                 for i in range(component.N):
                     molindices = []
@@ -891,8 +892,8 @@ class System:
                         molindices.append(blockindices)
                         idx_current += block.length               
                     indices.append(molindices)
-
-            elif (component.species.shape == "graft"):
+            
+            if (component.species.shape == "graft"):
 
                 length = (component.species.length)
                 nBlocks = (component.species.nBlocks)
@@ -904,11 +905,11 @@ class System:
 
                 for i in range(component.N):
                     molindices = []
-                    idx_current += n_grafts
                     for block in component.species.blocks:
                         blockindices = list(range(idx_current,idx_current+block.length))
                         molindices.append(blockindices)
-                        idx_current += block.length               
+                        idx_current += block.length    
+                    idx_current += n_grafts
                     indices.append(molindices)
 
         return indices
